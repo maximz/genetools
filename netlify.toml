@@ -1,0 +1,6 @@
+[build]
+    base = "docs/"
+    command = "make html"
+    publish = "_build/html"
+    # Rebuild docs on any change outside docs/
+    ignore = "false"

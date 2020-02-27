@@ -1,0 +1,73 @@
+# Config file for automatic testing at travis-ci.com
+
+language: python
+dist: xenial
+os: linux
+
+addons:
+  artifacts:
+    enabled: true
+    paths:
+    - tests/results
+
+cache:
+  - pip
+  - directories:
+    - $HOME/.cache/pre-commit
+
+jobs:
+  include:
+  - name: "Python 3.6"
+    python: "3.6"
+    env: TOXENV=py36
+  - name: "Python 3.7"
+    python: "3.7"
+    env: TOXENV=py37
+  - name: "Python 3.8"
+    python: "3.8"
+    env: TOXENV=py38
+  - name: "Linting"
+    python: "3.7"
+    env: TOXENV=lint
+  - name: "Docs"
+    python: "3.7"
+    env: TOXENV=docs
+    deploy:
+      - provider: netlify
+        # auth in env var NETLIFY_AUTH
+        site: 9f5ccb4e-edd9-4b59-af95-ce004b40bda1
+        edge: true # opt in to dpl v2
+        dir: "docs/_build/html"
+        # draft deploys unless master branch
+        prod: false
+      - provider: netlify
+        # auth in env var NETLIFY_AUTH
+        site: 9f5ccb4e-edd9-4b59-af95-ce004b40bda1
+        edge: true # opt in to dpl v2
+        dir: "docs/_build/html"
+        # draft deploys unless master branch
+        prod: true
+        on:
+          branch: master
+before_install:
+  - pip install --upgrade pip
+  - export MPLBACKEND=Agg
+install: pip install -U codecov tox-travis
+script: tox
+after_success: codecov
+
+# Assuming you have installed the travis-ci CLI tool, after you
+# create the Github repo and add it to Travis, run the
+# following command to finish PyPI deployment setup:
+# $ travis encrypt --add deploy.password
+deploy:
+  - provider: pypi
+    skip_cleanup: true
+    skip_existing: true
+    distributions: sdist bdist_wheel
+    username: __token__
+    # password in env var PYPI_PASSWORD
+    on:
+      branch: master
+      repo: maximz/genetools
+      python: 3.8
