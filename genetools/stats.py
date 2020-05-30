@@ -159,7 +159,7 @@ def intersect_marker_genes(
         cluster_marker_lists = cluster_markers_df.groupby('louvain')['gene'].apply(list).to_dict()
 
         # intersect with known marker gene lists
-        results, label_map, low_confidence_percentage = intersect_marker_genes(reference_marker_lists, cluster_marker_lists)
+        results, label_map, low_confidence_percentage = genetools.stats.intersect_marker_genes(reference_marker_lists, cluster_marker_lists)
 
         # rename clusters in your anndata/scanpy object
         adata.obs['louvain_annotated'] = adata.obs['louvain'].copy().cat.rename_categories(label_map)
