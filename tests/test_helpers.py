@@ -70,3 +70,45 @@ def test_get_off_diagonal_values():
     assert np.array_equal(
         helpers.get_off_diagonal_values(arr), np.array([2, 3, 4, 6, 7, 8])
     )
+
+
+def test_make_slurm_command():
+    actual = helpers.make_slurm_command(
+        script="python $variable_1 $variable_2",
+        job_name="test_job",
+        log_path="logs/",
+        env={"variable_1": "value_1", "variable_2": "value_2"},
+        options={
+            "time": "1:00:00",
+            "nodes": 1,
+            "cpus-per-task": 1,
+            "mem": "1G",
+            "partition": "interactive",
+        },
+        job_group_name="test_job_group",
+        wrap_script=True,
+    )
+    # Very important: the "wrap" is wrapped in single quotes.
+    expected = """sbatch --time="1:00:00" --nodes="1" --cpus-per-task="1" --mem="1G" --partition="interactive" --output="logs/test_job_group/test_job.out" --error="logs/test_job_group/test_job.err" --export="variable_1"="value_1","variable_2"="value_2" --wrap='python $variable_1 $variable_2';"""
+    assert actual == expected
+
+
+def test_make_slurm_command_unwrapped():
+    actual = helpers.make_slurm_command(
+        script="job.sh",
+        job_name="test_job",
+        log_path="logs/",
+        env={"variable_1": "value_1", "variable_2": "value_2"},
+        options={
+            "time": "1:00:00",
+            "nodes": 1,
+            "cpus-per-task": 1,
+            "mem": "1G",
+            "partition": "interactive",
+        },
+        job_group_name="",
+        wrap_script=False,
+    )
+    # Very important: the "wrap" is wrapped in single quotes.
+    expected = """sbatch --time="1:00:00" --nodes="1" --cpus-per-task="1" --mem="1G" --partition="interactive" --output="logs/test_job.out" --error="logs/test_job.err" --export="variable_1"="value_1","variable_2"="value_2" job.sh;"""
+    assert actual == expected
