@@ -44,17 +44,57 @@ def rank_normalize(values):
 
 
 def coclustering(cluster_ids_1, cluster_ids_2):
-    """Compute coclustering percentage between two sets of cluster IDs for the same cells, i.e.
-    the percentage of cell pairs that cluster into the same cluster by one method and into the same cluster by another method,
-    even if the clusters have different names across methods.
+    """Compute coclustering percentage between two sets of cluster IDs for the same cells:
+    Of the cell pairs clustered together by either or both methods, what percentage are clustered together by both methods?
+
+    (The clusters are allowed to have different names across methods, and don't necessarily need to be ints.)
 
     :param cluster_ids_1: One set of cluster IDs.
     :type cluster_ids_1: numpy array-like
     :param cluster_ids_2: Another set of cluster IDs.
     :type cluster_ids_2: numpy array-like
-    :return: Percentage of cell pairs clustered together by one method that are also clustered together by the other method.
+    :return: Percentage of cell pairs clustered together by one or both methods that are also clustered together by the other method.
     :rtype: float
     """
+
+    """
+    Approach here comes from exploting some Rand index implementations
+    https://scikit-learn.org/stable/modules/generated/sklearn.metrics.adjusted_rand_score.html
+    https://en.wikipedia.org/wiki/Rand_index
+    https://stackoverflow.com/a/49586743/130164
+    https://stats.stackexchange.com/a/157385/297
+
+    We want (a) / (a + c + d) from the Rand index
+
+    a: the number of pairs of elements in S that are in the same subset in X and in the same subset in Y
+    c: the number of pairs of elements in S that are in the same subset in X and in different subsets in Y
+    d: the number of pairs of elements in S that are in different subsets in X and in the same subset in Y
+
+    in other words:
+    a+c+d is the total number of elements coclustered in one, the other, or both datasets
+    a is the number of elements coclustered in both datasets.
+    """
+    from scipy.special import comb
+
+    # map to ints
+    method1 = pd.factorize(cluster_ids_1)[0]
+    method2 = pd.factorize(cluster_ids_2)[0]
+
+    tp_plus_fp = comb(np.bincount(method1), 2).sum()
+    tp_plus_fn = comb(np.bincount(method2), 2).sum()
+    A = np.c_[(method1, method2)]
+    # bincount: Count number of occurrences of each value in array of non-negative ints.
+    # So basically, for those cells, this is the number of them that land in each method2 cluster
+    # then we choose pairs.. and sum..
+    tp = sum(comb(np.bincount(A[A[:, 0] == i, 1]), 2).sum() for i in set(method1))
+    fp = tp_plus_fp - tp
+    fn = tp_plus_fn - tp
+
+    return tp / (tp + fp + fn)
+
+
+def _coclustering_slow(cluster_ids_1, cluster_ids_2):
+    """Slow version of coclustering()"""
 
     def coclustering_same_dataset(cluster_ids):
         """For a given set of cluster IDs, compare them pairwise to find which cells are co-clustered (have same cluster ID)

@@ -42,7 +42,11 @@ def test_self_coclustering():
     # 6 potential relationships in each dataset: 1-2, 1-3, 1-4, 2-3, 2-4, 3-4
     # Actual coclustering in each dataset: 1-2, 3-4
     # Shared coclusterings across datasets: 1-2, 3-4 (100%)
-    assert stats.coclustering(cluster_ids, cluster_ids) == 1.0
+    assert (
+        stats.coclustering(cluster_ids, cluster_ids)
+        == stats._coclustering_slow(cluster_ids, cluster_ids)
+        == 1.0
+    )
 
 
 def test_coclustering():
@@ -56,7 +60,11 @@ def test_coclustering():
 
     cluster_ids1 = ["Cluster1", "Cluster1", "Cluster2", "Cluster2", "Cluster3"]
     cluster_ids2 = ["ClusterA", "ClusterA", "ClusterA", "Cluster2", "Cluster3"]
-    assert stats.coclustering(cluster_ids1, cluster_ids2) == 1 / 4
+    assert (
+        stats.coclustering(cluster_ids1, cluster_ids2)
+        == stats._coclustering_slow(cluster_ids1, cluster_ids2)
+        == 1 / 4
+    )
 
 
 def test_coclustering_2():
@@ -83,7 +91,27 @@ def test_coclustering_2():
         "Cluster3",
         "Cluster3",
     ]
-    assert stats.coclustering(cluster_ids1, cluster_ids2) == 2 / 5
+    assert (
+        stats.coclustering(cluster_ids1, cluster_ids2)
+        == stats._coclustering_slow(cluster_ids1, cluster_ids2)
+        == 2 / 5
+    )
+
+
+def test_coclustering_3():
+    """Coclustering example (cell pairs are one-indexed):
+    - Cell pair (1, 2) is coclustered in both datasets
+    - Cell pair (3, 4) is coclustered in dataset 1 only
+    - Cell pair (4, 5) is coclustered in dataset 2 only
+    - All 7 other cell pairs are not coclustered in either dataset
+    """
+    cluster_ids1 = [0, 0, 1, 1, 2]
+    cluster_ids2 = ["a", "a", "b", "c", "c"]
+    assert (
+        stats.coclustering(cluster_ids1, cluster_ids2)
+        == stats._coclustering_slow(cluster_ids1, cluster_ids2)
+        == 1 / 3
+    )
 
 
 def test_intersect_marker_genes():
