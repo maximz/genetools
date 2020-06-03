@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 (2020-06-03)
+
+* Pandas helpers for easier normalization
+
 ## 0.2.0 (2020-06-03)
 
 * Far faster implementation of `stats.coclustering`

@@ -43,6 +43,28 @@ def rank_normalize(values):
     return scipy.stats.rankdata(values, method="ordinal")
 
 
+def normalize_rows(df):
+    """Make rows sum to 1.
+
+    :param df: dataframe
+    :type df: pandas.DataFrame
+    :return: row-normalized dataframe
+    :rtype: pandas.DataFrame
+    """
+    return df.div(df.sum(axis=1), axis=0)
+
+
+def normalize_columns(df):
+    """Make columns sum to 1.
+
+    :param df: dataframe
+    :type df: pandas.DataFrame
+    :return: column-normalized dataframe
+    :rtype: pandas.DataFrame
+    """
+    return df.div(df.sum(axis=0), axis=1)
+
+
 def coclustering(cluster_ids_1, cluster_ids_2):
     """Compute coclustering percentage between two sets of cluster IDs for the same cells:
     Of the cell pairs clustered together by either or both methods, what percentage are clustered together by both methods?
