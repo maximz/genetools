@@ -34,7 +34,9 @@ Full documentation: [https://genetools.maximz.com](https://genetools.maximz.com)
 
 ## Install
 
-Run `pip install --upgrade genetools[scanpy]`. Exclude brackets if you don't use scanpy.
+Run `pip install --upgrade 'genetools[scanpy]'`.
+
+Or if you don't use scanpy: `pip install --upgrade genetools`.
 
 ## Usage
 
