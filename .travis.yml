@@ -40,6 +40,8 @@ jobs:
         dir: "docs/_build/html"
         # draft deploys unless master branch
         prod: false
+        on:
+          all_branches: true
       - provider: netlify
         # auth in env var NETLIFY_AUTH
         site: 9f5ccb4e-edd9-4b59-af95-ce004b40bda1
