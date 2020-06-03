@@ -2,4 +2,4 @@
 
 __author__ = """Maxim Zaslavsky"""
 __email__ = "maxim@maximz.com"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
