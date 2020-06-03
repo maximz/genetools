@@ -35,6 +35,20 @@ def test_percentile_normalize():
     assert np.array_equal(expected, actual)
 
 
+def test_normalize_rows():
+    df = pd.DataFrame(np.random.randint(0, 100, size=(5, 3)))
+    row_sums = stats.normalize_rows(df).sum(axis=1)
+    assert len(row_sums) == 5, "sanity check"
+    assert np.allclose(row_sums, 1.0)
+
+
+def test_normalize_cols():
+    df = pd.DataFrame(np.random.randint(0, 100, size=(5, 3)))
+    column_sums = stats.normalize_columns(df).sum(axis=0)
+    assert len(column_sums) == 3, "sanity check"
+    assert np.allclose(column_sums, 1.0)
+
+
 def test_self_coclustering():
     """Coclustering sanity check: dataset against itself should always yield 100%
     """
