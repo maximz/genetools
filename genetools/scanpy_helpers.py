@@ -1,10 +1,5 @@
 """Scanpy common recipes."""
 
-import scipy
-import numpy as np
-import pandas as pd
-import scanpy as sc
-
 # TODO: enable speeding this up by using highly variable genes only?
 def find_all_markers(
     adata,
@@ -34,6 +29,11 @@ def find_all_markers(
     :return: Dataframe with ranked marker genes for each cluster. Important columns: gene, rank, [cluster_key] (same as argument value)
     :rtype: pandas.DataFrame
     """
+
+    import scipy
+    import numpy as np
+    import pandas as pd
+    import scanpy as sc
 
     # Compute marker genes
     sc.tl.rank_genes_groups(

@@ -1,5 +1,6 @@
 """Pandas/Numpy common recipes."""
 
+import os
 import scipy
 import numpy as np
 import pandas as pd
@@ -141,3 +142,59 @@ def get_off_diagonal_values(arr):
     """
     # See https://stackoverflow.com/a/35746928/130164
     return arr[~np.eye(arr.shape[0], dtype=bool)].flatten()
+
+
+def make_slurm_command(
+    script,
+    job_name,
+    log_path,
+    env=None,
+    options={},
+    job_group_name="",
+    wrap_script=True,
+):
+    """Generate slurm sbatch command. Should be pipe-able straight to bash.
+
+    Automatic log filenames will take the format:
+        - `{{ log_path }}/{{ job_group_name (optional) }}/{{ job_name }}.out` for stdout
+        - `{{ log_path }}/{{ job_group_name (optional) }}/{{ job_name }}.err` for stderr
+
+    You can override automatic log filenames by manually supplying "output" and "error" values in the `options` dict.
+
+    :param script: path to an executable script, or inline script (if wrap_script is True)
+    :type script: str
+    :param job_name: job name, used for naming log files
+    :type job_name: str
+    :param log_path: destination for log files.
+    :type log_path: str
+    :param env: any environment variables to pass to script, defaults to None
+    :type env: dict, optional
+    :param options: any CLI options for sbatch, defaults to {}
+    :type options: dict, optional
+    :param job_group_name: optional group name for this job and related jobs, used for naming log files, defaults to ""
+    :type job_group_name: str, optional
+    :param wrap_script: whether the script is inline as opposed to a file on disk, defaults to True
+    :type wrap_script: bool, optional
+    :return: an sbatch command
+    :rtype: str
+    """
+    log_fname_prefix = os.path.join(log_path, job_group_name, job_name)
+    if "output" not in options:
+        options["output"] = log_fname_prefix + ".out"
+    if "error" not in options:
+        options["error"] = log_fname_prefix + ".err"
+
+    options_items = ['--%s="%s"' % (name, val) for name, val in options.items()]
+    options_string = " ".join(options_items)
+
+    variable_string = ""
+    if env is not None:
+        variable_items = ['"%s"="%s"' % (name, val) for name, val in env.items()]
+        variable_string = "--export=" + ",".join(variable_items)
+
+    # Very important to wrap the "wrap script" in single quotes,
+    # so that the script will pick up the exported variables during execution.
+    script_string = "--wrap='%s'" % script if wrap_script else script
+    return "sbatch {options} {variables} {script};".format(
+        options=options_string, variables=variable_string, script=script_string
+    )
