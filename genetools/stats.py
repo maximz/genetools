@@ -320,4 +320,58 @@ def intersect_marker_genes(
     )
 
 
+def _seurat_clr(x):
+    """Seurat's implementation of centered log-ratio transformation."""
+    # TODO: support sparseness
+    s = np.sum(np.log1p(x[x > 0]))
+    exp = np.exp(s / len(x))
+    return np.log1p(x / exp)
+
+
+def clr_normalize_rows(mat):
+    """Centered log ratio transformation for Cite-seq data, normalizing each cell's antibody count vector.
+
+    Normalizes count vector for each cell, i.e. for each row of the matrix.
+
+    To use with anndata: `genetools.scanpy_helpers.clr_normalize_each_cell(adata)`
+
+    :param mat: Counts matrix (cells x proteins)
+    :type mat: numpy array or scipy sparse matrix
+    :return: Transformed counts matrix
+    :rtype: numpy array
+
+    Notes:
+
+    * Output will be densified.
+
+    * We use Seurat's implementation:
+    > log1p(x = x / (exp(x = sum(log1p(x = x[x > 0]), na.rm = TRUE) / length(x = x))))
+
+    This is almost the same as log(x) - 1/D * sum( log(product of x's) ),
+    which is the same as log(x) - log ( [ product of x's] ^ (1/D) ),
+    where D = len(x)
+
+    The general definition is:
+    > from scipy.stats.mstats import gmean
+    > return np.log(x) - np.log(gmean(x))
+
+    But geometric mean only applies to positive numbers (otherwise the inner product will be 0).
+    So you want to use pseudocounts or drop 0 counts.
+    That's what Seurat's modification does.
+
+    * See also https://github.com/theislab/scanpy/pull/1117 for other approaches.
+    """
+
+    # TODO: handle sparse arrays sparsely
+    # def _apply_to_dense_or_sparse_matrix_columns(func, X):
+    # if scipy.sparse.issparse(X):
+    # return scipy.sparse.vstack([func(X[rowidx, :]) for rowidx in range(X.shape[0])])
+    # return np.apply_along_axis(func, 1, X)
+
+    # apply to dense or sparse matrix, along axis. returns dense matrix
+    return np.apply_along_axis(
+        _seurat_clr, 1, (mat.A if scipy.sparse.issparse(mat) else mat)
+    )
+
+
 # TODO: Implement tf-idf like https://constantamateur.github.io/2020-04-10-scDE/ ?
