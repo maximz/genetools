@@ -29,6 +29,11 @@ def umap_scatter(
     label_color="k",
     label_alpha=0.5,
     label_size=20,
+    highlight_cell_names=None,
+    highlight_marker_size=30,
+    highlight_marker_color="r",
+    highlight_zorder=5,
+    highlight_marker_style="s",
 ):
     """Simple umap scatter plot, with legend outside figure.
 
@@ -68,6 +73,16 @@ def umap_scatter(
     :type label_alpha: float, optional
     :param label_size: size of cluster labels, defaults to 20
     :type label_size: int, optional
+    :param highlight_cell_names: [description]
+    :type highlight_cell_names: [type]
+    :param highlight_marker_size: [description], defaults to 30
+    :type highlight_marker_size: int, optional
+    :param highlight_marker_color: [description], defaults to 'r'
+    :type highlight_marker_color: str, optional
+    :param highlight_zorder: [description], defaults to 5
+    :type highlight_zorder: int, optional
+    :param highlight_marker_style: [description], defaults to 's'
+    :type highlight_marker_style: str, optional
     :return: matplotlib figure and axes
     :rtype: (matplotlib.Figure, matplotlib.Axes)
     """
@@ -124,6 +139,17 @@ def umap_scatter(
                     color=label_color,
                     zorder=label_z_order,
                 )
+
+        # overlay: highlight cells
+        if highlight_cell_names is not None:
+            plt.scatter(
+                data.iloc[highlight_cell_names][umap_1_key],
+                data.iloc[highlight_cell_names][umap_2_key],
+                s=highlight_marker_size,
+                c=highlight_marker_color,
+                zorder=highlight_zorder,
+                marker=highlight_marker_style,
+            )
 
         sns.despine(ax=ax)
 
@@ -260,112 +286,113 @@ def horizontal_stacked_bar_plot(
 ####
 
 
-# def stacked_density_plot(
-#     data,
-#     row_var,
-#     hue_var,
-#     value_var,
-#     col_var=None,
-#     overlap=False,
-#     suptitle=None,
-#     figsize=None,
-#     hue_order=None,
-#     row_order=None,
-#     palette=None,
-# ):
-#     """
-#     Multiple density plot.
-#     Adapted from old work at https://github.com/hammerlab/infino/blob/develop/analyze_cut.py#L912
+def stacked_density_plot(
+    data,
+    row_var,
+    hue_var,
+    value_var,
+    xlabel,
+    col_var=None,
+    overlap=False,
+    suptitle=None,
+    figsize=None,
+    hue_order=None,
+    row_order=None,
+    palette=None,
+):
+    """
+    Multiple density plot.
+    Adapted from old work at https://github.com/hammerlab/infino/blob/develop/analyze_cut.py#L912
 
-#     For row_order, consider row_order=reversed(list(range(data.ylevel.values.max()+1)))
-#     """
+    For row_order, consider row_order=reversed(list(range(data.ylevel.values.max()+1)))
+    """
 
-#     with sns.plotting_context("notebook"):
-#         with sns.axes_style("white", rc={"axes.facecolor": (0, 0, 0, 0)}):
-#             g = sns.FacetGrid(
-#                 data,
-#                 row=row_var,
-#                 hue=hue_var,
-#                 col=col_var,
-#                 row_order=row_order,
-#                 hue_order=hue_order,
-#                 aspect=15,
-#                 height=0.5,
-#                 palette=palette,
-#                 sharey=False,  # important -- they don't share y ranges.
-#             )
+    with sns.plotting_context("notebook"):
+        with sns.axes_style("white", rc={"axes.facecolor": (0, 0, 0, 0)}):
+            g = sns.FacetGrid(
+                data,
+                row=row_var,
+                hue=hue_var,
+                col=col_var,
+                row_order=row_order,
+                hue_order=hue_order,
+                aspect=15,
+                height=0.5,
+                palette=palette,
+                sharey=False,  # important -- they don't share y ranges.
+            )
 
-#             ## Draw the densities in a few steps
-#             # this is the shaded area
-#             g.map(sns.kdeplot, value_var, clip_on=False, shade=True, alpha=0.8, lw=2)
+            ## Draw the densities in a few steps
+            # this is the shaded area
+            g.map(sns.kdeplot, value_var, clip_on=False, shade=True, alpha=0.8, lw=2)
 
-#             # this is the dividing horizontal line
-#             g.map(plt.axhline, y=0, lw=2, clip_on=False, ls="dashed")
+            # this is the dividing horizontal line
+            g.map(plt.axhline, y=0, lw=2, clip_on=False, ls="dashed")
 
-#             ### Add label for each facet.
+            ### Add label for each facet.
 
-#             def label(**kwargs):
-#                 """
-#                 kwargs is e.g.: {'color': (0.4918017777777778, 0.25275644444444445, 0.3333333333333333), 'label': 'Name of the row'}
-#                 """
-#                 color = kwargs["color"]
-#                 label = kwargs["label"]
-#                 ax = plt.gca()  # map() changes current axis repeatedly
-#                 # x=1 if plot_on_right else 0; ha="right" if plot_on_right else "left",
-#                 ax.text(
-#                     1.25,
-#                     0.5,
-#                     label,
-#                     #                         fontweight="bold",
-#                     color=color,
-#                     #                     ha="right",
-#                     ha="left",
-#                     va="center",
-#                     transform=ax.transAxes,
-#                     fontsize="x-small",
-#                     #                                                        fontsize='x-large', #15,
-#                     #                             bbox=dict(facecolor='yellow', alpha=0.3)
-#                 )
+            def label(**kwargs):
+                """
+                kwargs is e.g.: {'color': (0.4918017777777778, 0.25275644444444445, 0.3333333333333333), 'label': 'Name of the row'}
+                """
+                color = kwargs["color"]
+                label = kwargs["label"]
+                ax = plt.gca()  # map() changes current axis repeatedly
+                # x=1 if plot_on_right else 0; ha="right" if plot_on_right else "left",
+                ax.text(
+                    1.25,
+                    0.5,
+                    label,
+                    #                         fontweight="bold",
+                    color=color,
+                    #                     ha="right",
+                    ha="left",
+                    va="center",
+                    transform=ax.transAxes,
+                    fontsize="x-small",
+                    #                                                        fontsize='x-large', #15,
+                    #                             bbox=dict(facecolor='yellow', alpha=0.3)
+                )
 
-#             g.map(label)
+            g.map(label)
 
-#             ## Beautify the plot.
-#             g.set(xlim=(-0.01, 1.01))
-#             # seems to do the trick along with sharey=False
-#             g.set(ylim=(0, None))
+            ## Beautify the plot.
+            g.set(xlim=(-0.01, 1.01))
+            # seems to do the trick along with sharey=False
+            g.set(ylim=(0, None))
 
-#             # Some `subplots_adjust` line is necessary. without this, nothing appears
-#             if not overlap:
-#                 g.fig.subplots_adjust(hspace=0)
+            # Some `subplots_adjust` line is necessary. without this, nothing appears
+            if not overlap:
+                g.fig.subplots_adjust(hspace=0)
 
-#             # Remove axes details that don't play will with overlap
-#             g.set_titles("")
-#             # g.set_titles(col_template="{col_name}", row_template="")
-#             g.set(yticks=[], ylabel="")
-#             g.despine(bottom=True, left=True)
+            # Remove axes details that don't play will with overlap
+            g.set_titles("")
+            # g.set_titles(col_template="{col_name}", row_template="")
+            g.set(yticks=[], ylabel="")
+            g.despine(bottom=True, left=True)
 
-#             # fix x axis
-#             g.set_xlabels("Pseudotime")
+            # fix x axis
+            g.set_xlabels(xlabel)
 
-#             # resize
-#             if figsize:
-#                 g.fig.set_size_inches(figsize[0], figsize[1])
-#             else:
-#                 cur_size = g.fig.get_size_inches()
-#                 increase_vertical = 3  # 7 #4 # 3
-#                 g.fig.set_size_inches(cur_size[0], cur_size[1] + increase_vertical)
+            # resize
+            if figsize:
+                g.fig.set_size_inches(figsize[0], figsize[1])
+            else:
+                cur_size = g.fig.get_size_inches()
+                increase_vertical = 3  # 7 #4 # 3
+                g.fig.set_size_inches(cur_size[0], cur_size[1] + increase_vertical)
 
-#             if suptitle is not None:
-#                 g.fig.suptitle(suptitle, fontsize="medium")
+            if suptitle is not None:
+                g.fig.suptitle(suptitle, fontsize="medium")
 
-#             # tighten
-#             g.fig.tight_layout()
+            # tighten
+            g.fig.tight_layout()
 
-#             # then reoverlap
-#             if overlap:
-#                 g.fig.subplots_adjust(hspace=-0.1)
+            # then reoverlap
+            if overlap:
+                g.fig.subplots_adjust(hspace=-0.1)
 
-#             return g, g.fig
+            return g.fig
 
 
 # TODO: density umap plot
