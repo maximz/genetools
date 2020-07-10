@@ -142,10 +142,11 @@ def stochasticity(
     # change bin ID to be left-offset of bin instead
     df["bin_id"] = df["bin_id"].apply(lambda interval: interval.left)
 
-    # Histogram: number of values in each bin
-    # for this analysis, we want this to be roughly uniform.
-    # that's why we use percentile normalized pseudotime values above! otherwise it won't be uniform.
+    # Note:
+    # expects percentile normalized pseudotime values,
+    # so that we have a roughly uniform number of values in each bin
     # df["bin_id"].hist()
+    # TODO: confirm percentile normalized input
 
     # group by bin ID, count unique barcodes in that bin
     cells_by_bin = df.groupby("bin_id", sort=False)["full_barcode"].nunique()
@@ -164,6 +165,8 @@ def stochasticity(
 def mean_order(trajectory_df, barcode_key):
     """[summary]
     ## Ensemble: Mean trajectory
+    # Take each cell's mean across all trajectories
+    # "project cells onto this ensemble medoid trajectory"
 
     trajectories have different linear scales:
 
@@ -190,7 +193,6 @@ def mean_order(trajectory_df, barcode_key):
         raise ValueError("Some cells are unreachable (NaN pseudotimes)")
 
     # Take each cell's mean across all trajectories
-    # "project cells onto this ensemble medoid trajectory"
     mean_trajectory = trajectory_df.groupby([barcode_key], sort=False)[
         "pseudotime"
     ].mean()
@@ -213,7 +215,6 @@ def spectral_order(
     n_cells_sample=None,
 ):
     """[summary]
-    Expect percent normalized input.
 
     Use a kNN graph from scanpy instead of computing a dense similarity matrix:
 
@@ -254,29 +255,6 @@ def spectral_order(
     import anndata
     import scanpy as sc
 
-    # Legacy code from when we passed around arrays of individual trajectories
-    # (We might bring that API back):
-
-    # pseudotime_ranks = pd.concat(pseudotime_vals, axis=1)
-    # pseudotime_ranks = pseudotime_ranks.apply(percentile_normalize, axis=0)
-    # pseudotime_ranks = pseudotime_ranks.T  # n_experiments x n_cells, percentile normalized
-
-    # print(pseudotime_ranks.shape)
-    # pseudotime_ranks
-
-    # cells_sample = np.random.choice(
-    #     pseudotime_ranks.columns, size=n_cells_sample, replace=False
-    # )
-    # cells_sample[:5]
-
-    # matches_sample = np.random.choice(
-    #     pseudotime_ranks.index, size=n_trajectories_sample, replace=False
-    # )
-    # matches_sample[:5]
-
-    # pseudotime_ranks_subsample = pseudotime_ranks.loc[matches_sample][cells_sample]
-    # pseudotime_ranks_subsample.shape, pseudotime_ranks.shape
-
     if not n_cells_sample:
         # default to 20% of cells
         n_cells_sample = int(trajectory_df[barcode_key].nunique() * 0.2)
@@ -297,11 +275,6 @@ def spectral_order(
     ].pivot(index=root_cell_key, columns=barcode_key, values="pseudotime")
 
     # make P, the transition matrix
-    # # number of matches, as in a tournament where each match = all players compete against each other
-    # n_matches = pseudotime_ranks_subsample.shape[0]
-    # # number of players in the tournament
-    # n_cells = pseudotime_ranks_subsample.shape[1]
-
     matches = scipy.sparse.csr_matrix(
         (pseudotime_ranks_subsample.shape[1], pseudotime_ranks_subsample.shape[1])
     )
@@ -340,42 +313,26 @@ def spectral_order(
         # note: this is a copy not a view unfortunately.
         matches += template_mat[reorder_template, :][:, reorder_template]
 
-    # maybe we can cut the below and just average?
-
-    # # change 0s to -1s after the fact
-    # # x - y = 2x - (x+y) , where x is number of 1s, y is number of -1s
-    # # we have only been summing x, not x-y, so far
-    # matches *= 2
-    # # Have to convert to dense here
-    # # subtracting a nonzero scalar from a sparse matrix is not supported
-    # matches = matches.toarray() - n_matches
-
-    # # compute sample probabilities
-    # #     Q = np.sum(matches, axis=0)
-    # Q = matches  # already summed
-    # Q += 1 * n_matches
-    # Q *= 0.5
-    # Q *= 1.0 / n_matches
+    # compute sample probabilities
     Q = matches
 
     # normalize each row to have same euclidean norm
-
     Q_normalized = preprocessing.normalize(Q, norm="l2")
 
+    # kNN graph
     Q_adata = anndata.AnnData(Q_normalized)
-
-    # import scanpy as sc
     sc.pp.neighbors(Q_adata, use_rep="X")
 
     # laplacian of the adjacency matrix of the kNN graph
     laplacian_mat = laplacian(Q_adata.uns["neighbors"]["connectivities"], normed=False)
 
+    # take second smallest eigenvalue
     _, eigenvecs = eigsh(laplacian_mat, 2, which="SM", tol=1e-8)
 
-    # take second smallest eigenvalue
-    # order along it
+    # order along second smallest eigenvalue
     labels = pseudotime_ranks_subsample.columns
     order = [label for (_, label) in sorted(zip(eigenvecs[:, 1], labels))]
+
     # assign orders 0 -> 1, normalize / num_cells
     spectral_order_series = pd.Series(
         np.arange(len(order)) / len(order), index=order, name="spectral_order"
