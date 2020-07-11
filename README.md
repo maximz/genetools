@@ -1,7 +1,9 @@
 # genetools: single-cell analysis recipes (work in progress)
 
-![https://pypi.python.org/pypi/genetools](https://img.shields.io/pypi/v/genetools.svg)
-![https://travis-ci.com/maximz/genetools](https://img.shields.io/travis/maximz/genetools.svg)
+[![](https://img.shields.io/pypi/v/genetools.svg)](https://pypi.python.org/pypi/genetools)
+[![](https://img.shields.io/travis/maximz/genetools.svg)](https://travis-ci.com/maximz/genetools)
+[![](https://img.shields.io/badge/docs-here-blue.svg)](https://genetools.maximz.com)
+[![](https://img.shields.io/github/stars/maximz/genetools?style=social)](https://github.com/maximz/genetools)
 
 ## Plot gallery
 
