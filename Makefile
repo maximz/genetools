@@ -51,7 +51,7 @@ lint:
 	pre-commit run --all-files --show-diff-on-failure
 
 test: ## run tests quickly with the default Python
-	pytest --mpl --mpl-results-path=tests/results -vv
+	pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results -vv
 
 test-all: ## run tests on every Python version with tox
 	tox
