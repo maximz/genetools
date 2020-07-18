@@ -56,8 +56,11 @@ test: ## run tests quickly with the default Python
 test-all: ## run tests on every Python version with tox
 	tox
 
-regen-tests: ## regenerate baseline figures
+regen-snapshot-figures: ## regenerate baseline figures
 	pytest --mpl-generate-path=tests/baseline
+
+regen-test-data: ## regenerate saved test data (and baseline figures)
+	pytest --mpl-generate-path=tests/baseline --regenerate-anndata
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source genetools -m pytest

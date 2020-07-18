@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 
-"""Tests for `genetools` package."""
+"""Tests for `genetools` plots.
+
+Keep in mind when writing plotting tests:
+- Use `@pytest.mark.mpl_image_compare` decorator to automatically do snapshot testing. See README.md for how to regenerate snapshots.
+- `plt.tight_layout()` seems to produce different figure dimensions across different platforms.
+    - Avoid until we figure out how to generate figures in a consistent way with Travis CI. (Run Travis-like environment locally in Docker? Hacky.)
+- Some figures seem not to export right unless you save with tight bounding box:
+    - `@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})`
+"""
 
 import pytest
 import numpy as np
@@ -18,10 +26,10 @@ random.seed(random_seed)
 
 
 @pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
-def test_umap_scatter_discrete(adata_obs):
+def test_umap_scatter_discrete(adata):
     """Test umap_scatter with discrete hue."""
     fig, _ = plots.umap_scatter(
-        data=adata_obs,
+        data=adata.obs,
         umap_1_key="umap_1",
         umap_2_key="umap_2",
         hue_key="louvain",
@@ -31,10 +39,10 @@ def test_umap_scatter_discrete(adata_obs):
 
 
 @pytest.mark.mpl_image_compare
-def test_umap_scatter_continuous(adata_obs):
+def test_umap_scatter_continuous(adata):
     """Test umap_scatter with continouous hue."""
     fig, _ = plots.umap_scatter(
-        data=adata_obs,
+        data=adata.obs,
         umap_1_key="umap_1",
         umap_2_key="umap_2",
         hue_key="CST3",

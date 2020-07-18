@@ -60,11 +60,15 @@ Common commands:
 # lint
 make lint
 
+# one-time: generate test anndata, and commit so we have reproducible tests in CI
+rm -r data
+make regen-test-data
+
 # run tests
 make test
 
 # generate baseline figures (run from root directory)
-make regen-tests
+make regen-snapshot-figures
 
 # bump version before submitting a PR against master (all master commits are deployed)
 bump2version patch # possible: major / minor / patch

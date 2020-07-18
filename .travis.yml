@@ -3,6 +3,8 @@
 language: python
 dist: xenial
 os: linux
+services:
+  - xvfb
 
 addons:
   artifacts:
