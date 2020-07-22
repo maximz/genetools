@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+* Centered log ratio (CLR) normalization for Cite-seq protein data.
+
 ## 0.3.0 (2020-06-03)
 
 * Pandas helpers for easier normalization

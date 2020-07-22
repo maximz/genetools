@@ -64,10 +64,13 @@ def find_all_markers(
     )
 
 
-def clr_normalize_each_cell(adata, inplace=True):
-    """Centered log ratio transformation for Cite-seq data, normalizing each cell's antibody count vector.
-    Normalizes count vector for each cell, i.e. for each row of .X.
-    This is a wrapper of `genetools.stats.clr_normalize_rows(matrix)`.
+def clr_normalize(adata, axis=0, inplace=True):
+    """Centered log ratio transformation for Cite-seq data, normalizing:
+
+    * each protein's count vectors across cells (axis=0, normalizing each column of the cells x proteins matrix, default)
+    * or the antibody count vector for each cell (axis=1, normalizing each row of the cells x proteins matrix)
+
+    This is a wrapper of `genetools.stats.clr_normalize(matrix)`.
 
     :param adata: Protein counts anndata
     :type adata: anndata.AnnData
@@ -76,8 +79,8 @@ def clr_normalize_each_cell(adata, inplace=True):
     :return: Transformed anndata
     :rtype: anndata.AnnData
     """
-    # TODO: expose this as a decorator for genetools.stats.clr_normalize_rows ?
+    # TODO: expose this as a decorator for genetools.stats.clr_normalize ?
     if not inplace:
         adata = adata.copy()
-    adata.X = stats.clr_normalize_rows(adata.X)
+    adata.X = stats.clr_normalize(adata.X, axis=axis)
     return adata
