@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0
+## 0.4.0 (2020-07-22)
 
 * Centered log ratio (CLR) normalization for Cite-seq protein data.
 
