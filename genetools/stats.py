@@ -320,4 +320,71 @@ def intersect_marker_genes(
     )
 
 
+def _seurat_clr(x):
+    """Seurat's implementation of centered log-ratio transformation."""
+    # TODO: support sparseness
+    s = np.sum(np.log1p(x[x > 0]))
+    exp = np.exp(s / len(x))
+    return np.log1p(x / exp)
+
+
+def clr_normalize(mat, axis=0):
+    """Centered log ratio transformation for Cite-seq data, normalizing:
+
+    * each protein's count vectors across cells (axis=0, normalizing each column of the cells x proteins matrix, default)
+    * or the antibody count vector for each cell (axis=1, normalizing each row of the cells x proteins matrix)
+
+    To use with anndata: `genetools.scanpy_helpers.clr_normalize(adata, axis)`
+
+    :param mat: Counts matrix (cells x proteins)
+    :type mat: numpy array or scipy sparse matrix
+    :param axis: normalize each antibody independently (axis=0) or normalize each cell independently (axis=1), defaults to 0
+    :type axis: int, optional
+    :return: Transformed counts matrix
+    :rtype: numpy array
+
+    Notes:
+
+    * Output will be densified.
+
+    * We use Seurat's [modified CLR implementation](https://github.com/satijalab/seurat/issues/2624) to handle pseudocounts:
+    > log1p(x = x / (exp(x = sum(log1p(x = x[x > 0]), na.rm = TRUE) / length(x = x))))
+
+    This is almost the same as log(x) - 1/D * sum( log(product of x's) ),
+    which is the same as log(x) - log ( [ product of x's] ^ (1/D) ),
+    where D = len(x)
+
+    The general definition is:
+    > from scipy.stats.mstats import gmean
+    > return np.log(x) - np.log(gmean(x))
+
+    But geometric mean only applies to positive numbers (otherwise the inner product will be 0).
+    So you want to use pseudocounts or drop 0 counts.
+    That's what Seurat's modification does.
+
+    * See also https://github.com/theislab/scanpy/pull/1117 for other approaches.
+
+    * Do you run this normalization cell-wise or gene-wise (i.e. protein-wise)? [See discussion here](https://github.com/satijalab/seurat/issues/871#issuecomment-431414099):
+
+        > Unfortunately there is not a single answer. In some cases, cell-based normalization fails. This is because cell-normalization makes an assumption that the total ADT counts should be constant across cells. That can become a significant issue if you have cell populations in your data, but did not add protein markers for them (this is also an issue for scRNA-seq, but is significantly mitigated because at least you measure many genes).
+        >
+        > However, gene-based normalization can fail when there is significant heterogeneity in sequencing depth, or cell size. The optimal strategy depends on the AB panel, and heterogeneity of your sample.
+
+    In this implementation, protein-wise is axis=0 and cell-wise is axis=1. Seurat's default is protein-wise, i.e. axis=0.
+
+    The default is "protein-wise" (axis=0), i.e. normalize each protein independently.
+    """
+
+    # TODO: handle sparse arrays sparsely
+    # def _apply_to_dense_or_sparse_matrix_columns(func, X):
+    # if scipy.sparse.issparse(X):
+    # return scipy.sparse.vstack([func(X[rowidx, :]) for rowidx in range(X.shape[0])])
+    # return np.apply_along_axis(func, axis, X)
+
+    # apply to dense or sparse matrix, along axis. returns dense matrix
+    return np.apply_along_axis(
+        _seurat_clr, axis, (mat.A if scipy.sparse.issparse(mat) else mat)
+    )
+
+
 # TODO: Implement tf-idf like https://constantamateur.github.io/2020-04-10-scDE/ ?

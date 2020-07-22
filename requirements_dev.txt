@@ -10,6 +10,7 @@ pandas==1.0.3
 pip==19.2.3
 pre-commit>=2.3.0
 pytest==4.6.5
+pytest-cov==2.10.0
 pytest-mpl==0.11
 pytest-runner==5.1
 python-igraph==0.8.0

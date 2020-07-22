@@ -1,5 +1,7 @@
 """Scanpy common recipes."""
 
+from . import stats
+
 # TODO: enable speeding this up by using highly variable genes only?
 def find_all_markers(
     adata,
@@ -60,3 +62,27 @@ def find_all_markers(
         .rename(columns={"names": "gene"})
         .reset_index(drop=True)
     )
+
+
+def clr_normalize(adata, axis=0, inplace=True):
+    """Centered log ratio transformation for Cite-seq data, normalizing:
+
+    * each protein's count vectors across cells (axis=0, normalizing each column of the cells x proteins matrix, default)
+    * or the antibody count vector for each cell (axis=1, normalizing each row of the cells x proteins matrix)
+
+    This is a wrapper of `genetools.stats.clr_normalize(matrix, axis)`.
+
+    :param adata: Protein counts anndata
+    :type adata: anndata.AnnData
+    :param axis: normalize each antibody independently (axis=0) or normalize each cell independently (axis=1), defaults to 0
+    :type axis: int, optional
+    :param inplace: whether to modify input anndata, defaults to True
+    :type inplace: bool, optional
+    :return: Transformed anndata
+    :rtype: anndata.AnnData
+    """
+    # TODO: expose this as a decorator for genetools.stats.clr_normalize ?
+    if not inplace:
+        adata = adata.copy()
+    adata.X = stats.clr_normalize(adata.X, axis=axis)
+    return adata

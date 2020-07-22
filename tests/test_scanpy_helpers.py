@@ -6,8 +6,10 @@ import pytest
 import numpy as np
 import pandas as pd
 import scanpy as sc
+import anndata
+import scipy
 
-from genetools import scanpy_helpers
+from genetools import scanpy_helpers, stats
 
 
 @pytest.fixture
@@ -97,3 +99,53 @@ def test_find_all_markers(adata):
     expected_clusters = adata.obs["louvain"].sort_values().unique()
     actual_clusters = cluster_markers_df["louvain"].sort_values().unique()
     assert np.array_equal(actual_clusters, expected_clusters)
+
+
+def test_clr_normalization():
+    """This tests genetools.stats.clr_normalize and genetools.scanpy_helpers.clr_normalize"""
+    # make anndata with 20 cells x 14 antibodies
+    # try sparse and dense versions to make sure they work identically
+    rows = []
+    for _ in range(20):
+        rows.append(
+            np.array([0, 0, 0, np.nan] + list(np.random.randint(0, 25, size=10)))
+        )
+
+    dense = np.vstack(rows)
+    dense_adata = anndata.AnnData(X=dense)
+    dense_adata_by_cell = dense_adata.copy()
+
+    sparse = scipy.sparse.lil_matrix(dense)
+    sparse_adata = anndata.AnnData(X=sparse)
+
+    assert sparse_adata.X.shape == dense_adata.X.shape == (20, 14)
+    assert scipy.sparse.issparse(sparse_adata.X)
+    assert not scipy.sparse.issparse(dense_adata.X)
+
+    scanpy_helpers.clr_normalize(sparse_adata)
+    scanpy_helpers.clr_normalize(dense_adata)
+    scanpy_helpers.clr_normalize(dense_adata_by_cell, axis=1)
+
+    # No longer sparse!
+    assert not scipy.sparse.issparse(sparse_adata.X)
+    assert not scipy.sparse.issparse(dense_adata.X)
+
+    assert sparse_adata.X.shape == dense_adata.X.shape == dense.shape == sparse.shape
+
+    assert np.allclose(sparse_adata.X, dense_adata.X, equal_nan=True)
+
+    # Confirm the values match running the function manually over a column (a protein)
+    manual_run_2nd_col = stats._seurat_clr(dense[:, 1])
+    assert manual_run_2nd_col.shape[0] == 20
+    assert np.allclose(manual_run_2nd_col, dense_adata.X[:, 1], equal_nan=True)
+
+    # Confirm the values match running the function manually over a row (a cell)
+    manual_run_2nd_row = stats._seurat_clr(dense[1, :])
+    assert manual_run_2nd_row.shape[0] == 14
+    assert np.allclose(manual_run_2nd_row, dense_adata_by_cell.X[1, :], equal_nan=True)
+
+    # Also test "inplace" parameter
+    dense_adata2 = anndata.AnnData(X=dense)
+    dense_adata3 = scanpy_helpers.clr_normalize(dense_adata2, inplace=False)
+    assert np.allclose(dense_adata.X, dense_adata3.X, equal_nan=True)
+    assert not np.allclose(dense_adata2.X, dense_adata3.X, equal_nan=True)
