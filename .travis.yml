@@ -51,9 +51,7 @@ jobs:
         prod: true
         on:
           branch: master
-before_install:
-  - pip install --upgrade pip
-  - export MPLBACKEND=Agg
+before_install: pip install --upgrade pip
 install: pip install -U codecov tox-travis
 script: tox
 after_success: codecov
