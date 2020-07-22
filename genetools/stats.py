@@ -334,10 +334,12 @@ def clr_normalize(mat, axis=0):
     * each protein's count vectors across cells (axis=0, normalizing each column of the cells x proteins matrix, default)
     * or the antibody count vector for each cell (axis=1, normalizing each row of the cells x proteins matrix)
 
-    To use with anndata: `genetools.scanpy_helpers.clr_normalize(adata)`
+    To use with anndata: `genetools.scanpy_helpers.clr_normalize(adata, axis)`
 
     :param mat: Counts matrix (cells x proteins)
     :type mat: numpy array or scipy sparse matrix
+    :param axis: normalize each antibody independently (axis=0) or normalize each cell independently (axis=1), defaults to 0
+    :type axis: int, optional
     :return: Transformed counts matrix
     :rtype: numpy array
 

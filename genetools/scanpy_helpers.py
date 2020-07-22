@@ -70,10 +70,12 @@ def clr_normalize(adata, axis=0, inplace=True):
     * each protein's count vectors across cells (axis=0, normalizing each column of the cells x proteins matrix, default)
     * or the antibody count vector for each cell (axis=1, normalizing each row of the cells x proteins matrix)
 
-    This is a wrapper of `genetools.stats.clr_normalize(matrix)`.
+    This is a wrapper of `genetools.stats.clr_normalize(matrix, axis)`.
 
     :param adata: Protein counts anndata
     :type adata: anndata.AnnData
+    :param axis: normalize each antibody independently (axis=0) or normalize each cell independently (axis=1), defaults to 0
+    :type axis: int, optional
     :param inplace: whether to modify input anndata, defaults to True
     :type inplace: bool, optional
     :return: Transformed anndata
