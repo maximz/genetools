@@ -242,9 +242,13 @@ def intersect_marker_genes(
     :rtype: (pandas.DataFrame, dict, float) tuple
     """
 
-    assert (
-        len(reference_data.keys()) >= 2
-    ), "Need at least two reference clusters otherwise everything will map to the first."
+    if len(query_data.keys()) < 1:
+        raise ValueError("Must supply some query clusters to annotate.")
+
+    if len(reference_data.keys()) < 2:
+        raise ValueError(
+            "Need at least two reference clusters otherwise everything will map to the first."
+        )
 
     # make dataframe with reference clusters as rows, query clusters as columns, cells are intersection scores
     marker_gene_intersection_df = pd.DataFrame()
