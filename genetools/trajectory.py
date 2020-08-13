@@ -162,12 +162,12 @@ def mean_order(trajectory_df, barcode_key="cell_barcode"):
     mean_trajectory = trajectory_df.groupby([barcode_key], sort=False)[
         "pseudotime"
     ].mean()
-    if any(mean_trajectory.isna()):
-        raise ValueError()
 
     # renormalize
     mean_trajectory = pd.Series(
-        stats.percentile_normalize(mean_trajectory), index=mean_trajectory.index
+        stats.percentile_normalize(mean_trajectory),
+        index=mean_trajectory.index,
+        name="mean_order",
     )
 
     return mean_trajectory
@@ -175,7 +175,7 @@ def mean_order(trajectory_df, barcode_key="cell_barcode"):
 
 def spectral_order(
     trajectory_df,
-    root_cell_key,
+    root_cell_key="root_cell",
     barcode_key="cell_barcode",
     n_trajectories_sample=None,
     n_cells_sample=None,
@@ -306,6 +306,7 @@ def spectral_order(
 
     # want no repeats in the order, i.e. all value counts should be 1
     if not all(spectral_order_series.reset_index()["index"].value_counts() == 1):
+        # TODO: try not any(spectral_order_series.index.duplicated()) for clarity instead?
         raise ValueError("Unexpected repeats in the spectral ordering")
 
     # sometimes eigenvector signs will be flipped, giving the reverse ordering.
@@ -328,7 +329,7 @@ def spectral_order(
     if (
         spectral_order_series[
             filtered_trajectories.loc[
-                filtered_trajectories.groupby("root_cell_key")["pseudotime"].idxmin()
+                filtered_trajectories.groupby(root_cell_key)["pseudotime"].idxmin()
             ][barcode_key]
         ].median()
         > 0.5
