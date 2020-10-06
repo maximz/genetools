@@ -412,7 +412,7 @@ def two_class_relative_density_plot(
 
     # choose bins to remove: drop bins with low number of counts
     # i.e. low overall density
-    bins_to_remove = bin_sizes[bin_sizes < bin_sizes.quantile(0.25)].reset_index(
+    bins_to_remove = bin_sizes[bin_sizes < bin_sizes.quantile(quantile)].reset_index(
         name="size"
     )
 
