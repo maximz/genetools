@@ -332,5 +332,109 @@ def horizontal_stacked_bar_plot(
 #             return g, g.fig
 
 
-# TODO: density umap plot
-# TODO: two class density plots.
+def density_2d_plot(data, x_key, y_key, color="#4CB391", gridsize=100, **kwargs):
+    """[summary]
+
+    :param data: [description]
+    :type data: [type]
+    :param x_key: [description]
+    :type x_key: [type]
+    :param y_key: [description]
+    :type y_key: [type]
+    :param color: [description], defaults to "#4CB391"
+    :type color: str, optional
+    :param gridsize: Grid size as in hexbin(), defaults to 100. From matplotlib docs: "If a single int, the number of hexagons in the x-direction. The number of hexagons in the y-direction is chosen such that the hexagons are approximately regular. Alternatively, if a tuple (nx, ny), the number of hexagons in the x-direction and the y-direction."
+    :type gridsize: int, optional
+    :return: [description]
+    :rtype: [type]
+    """
+    # this calls hexbin()
+    with sns.axes_style("white"):
+        g = sns.jointplot(
+            data=data,
+            x=x_key,
+            y=y_key,
+            kind="hex",
+            color=color,
+            gridsize=gridsize,
+            **kwargs
+        )
+        return g.fig
+
+
+def two_class_relative_density_plot(
+    data,
+    x_key,
+    y_key,
+    hue_key,
+    positive_class=None,
+    colorbar_label=None,
+    quantile=0.25,
+    figsize=(8, 8),
+    bins=10,
+    continuous_cmap="viridis",
+):
+    """[summary]
+
+    :param data: [description]
+    :type data: [type]
+    :param x_key: [description]
+    :type x_key: [type]
+    :param y_key: [description]
+    :type y_key: [type]
+    :param hue_key: [description] Values should be True or int, unless positive_class is specified.
+    :type hue_key: [type]
+    # TODO: positive_class
+    :param quantile: [description], defaults to .25
+    :type quantile: float, optional
+    :param figsize: [description], defaults to (8, 8)
+    :type figsize: tuple, optional
+    :param continuous_cmap: [description], defaults to "viridis"
+    :type continuous_cmap: str, optional
+    """
+    import scipy.stats
+
+    binned_data = scipy.stats.binned_statistic_2d(
+        data[x_key],
+        data[y_key],
+        data[hue_key] == positive_class
+        if positive_class is not None
+        else data[hue_key].astype(int),
+        statistic="mean",
+        bins=bins,
+        expand_binnumbers=True,
+    )
+
+    # which bin does each point belong to
+    bin_number_df = pd.DataFrame(binned_data.binnumber, index=["x_bin", "y_bin"]).T
+    # bin sizes: number of points per bin
+    bin_sizes = bin_number_df.groupby(["x_bin", "y_bin"]).size()
+
+    # choose bins to remove: drop bins with low number of counts
+    # i.e. low overall density
+    bins_to_remove = bin_sizes[bin_sizes < bin_sizes.quantile(0.25)].reset_index(
+        name="size"
+    )
+
+    # remove those bins by setting the color value to nan.
+    # to multiple-index into a 2d array, list x dimensions first, then y dimensions second
+    # note: the bin numbers are 1-indexed, not 0-indexed!
+    binned_data.statistic[
+        bins_to_remove["x_bin"].values - 1, bins_to_remove["y_bin"].values - 1
+    ] = np.nan
+
+    # plot -- as in numpy histogram2d docs
+    fig, ax = plt.subplots(figsize=figsize)
+    pltX, pltY = np.meshgrid(binned_data.x_edge, binned_data.y_edge)
+    plt.pcolormesh(pltX, pltY, binned_data.statistic, cmap=continuous_cmap)
+
+    if colorbar_label is not None:
+        plt.colorbar(label=colorbar_label)
+
+    # equal aspect ratio
+    ax.set_aspect("equal", "datalim")
+
+    plt.xlabel(x_key)
+    plt.ylabel(y_key)
+
+    return fig, ax
