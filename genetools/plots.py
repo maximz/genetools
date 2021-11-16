@@ -376,6 +376,8 @@ def two_class_relative_density_plot(
 ):
     """[summary]
 
+    For alternatives, see contour KDEs in seaborn's displot function.
+
     :param data: [description]
     :type data: [type]
     :param x_key: [description]
