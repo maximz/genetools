@@ -36,6 +36,14 @@ genetools.stats module
     :undoc-members:
     :show-inheritance:
 
+genetools.trajectory module
+---------------------------
+
+.. automodule:: genetools.trajectory
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Module contents
 ---------------

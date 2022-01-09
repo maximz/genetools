@@ -180,6 +180,9 @@ def plot_dispersions(
         x=pseudotime_mean_key,
         y=pseudotime_std_key,
         hue=hue_key,
+        hue_order=(
+            sorted(plot_data[hue_key].unique()) if hue_key is not None else None
+        ),
         palette=(
             plots._verify_or_create_palette(palette, plot_data, hue_key)
             if hue_key is not None

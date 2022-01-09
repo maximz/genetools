@@ -120,7 +120,7 @@ def test_spectral_ordering_rejects_unreachable_cells(trajectories):
     trajectory.spectral_order(df, "root_cell", "cell_barcode")
 
 
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(tolerance=10)
 def test_mean_vs_spectral_orderings(
     adata, trajectories, mean_ordering, spectral_ordering
 ):
@@ -162,7 +162,7 @@ def test_plot_mean_trajectory_on_umap(adata, mean_ordering):
     return _umap_trajectory(adata, mean_ordering)
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"}, tolerance=10)
 def test_plot_stdev_trajectory_on_umap(adata, spectral_ordering):
     return _umap_trajectory(adata, spectral_ordering)
 
