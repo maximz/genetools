@@ -288,10 +288,88 @@ def horizontal_stacked_bar_plot(
 
 def stacked_density_plot(
     data,
+    cluster_label_key,
+    value_key,
+    xlabel=None,
+    suptitle=None,
+    figsize=(6, 8.5),
+    palette=None,
+    overlap=False,
+    **kwargs
+):
+    """[summary]
+    Plot probability densities. value_key should range from 0 to 1.
+
+    :param data: [description]
+    :type data: [type]
+    :param cluster_label_key: [description]
+    :type cluster_label_key: [type]
+    :param value_key: [description]
+    :type value_key: [type]
+    :param xlabel: [description], defaults to None
+    :type xlabel: [type], optional
+    :param suptitle: [description], defaults to None
+    :type suptitle: [type], optional
+    :param figsize: [description], defaults to (6, 8.5)
+    :type figsize: tuple, optional
+    :param palette: [description], defaults to None
+    :type palette: [type], optional
+    :param overlap: [description], defaults to False
+    :type overlap: bool, optional
+    :return: [description]
+    :rtype: [type]
+    """
+    ## 1. remove without one-cell clusters because we can't draw a density for those
+
+    clusters_to_keep = data[cluster_label_key].value_counts()
+    clusters_to_keep = clusters_to_keep[clusters_to_keep > 1].index.tolist()
+    plot_df = data[data[cluster_label_key].isin(clusters_to_keep)].copy()
+
+    # TODO: bring back debug logging:
+    # print("Removed 1-cell clusters")
+    # print(data.shape, "-->", plot_df.shape)
+
+    ## 2. Set a new ylevel that only contains the remaining clusters
+
+    # problem with using cluster_label_key as ylevel:
+    # it's possibly a Categorical so it still contains the empty levels, so now those will have empty rows attached
+    # just convert back to strings from categorical
+    plot_df[cluster_label_key] = plot_df[cluster_label_key].astype("str")
+
+    ## 3. Set row order
+
+    # sort rows by median value
+    # so we have nicely increasing densities as we go down the plot
+    ylevel_order = (
+        plot_df.groupby(cluster_label_key)[value_key]
+        .median()
+        .sort_values()
+        .index.tolist()
+    )
+
+    ## 4. Plot.
+
+    return _stacked_density_facetgrid(
+        plot_df,
+        row_var=cluster_label_key,
+        hue_var=cluster_label_key,
+        value_var=value_key,
+        xlabel=xlabel,
+        overlap=overlap,
+        suptitle=suptitle,
+        figsize=figsize,
+        row_order=ylevel_order,
+        palette=palette,
+        **kwargs
+    )
+
+
+def _stacked_density_facetgrid(
+    data,
     row_var,
     hue_var,
     value_var,
-    xlabel,
+    xlabel=None,
     col_var=None,
     overlap=False,
     suptitle=None,
@@ -301,10 +379,13 @@ def stacked_density_plot(
     palette=None,
 ):
     """
-    Multiple density plot.
+    Customizable multiple rows+columns density plot.
+
     Adapted from old work at https://github.com/hammerlab/infino/blob/develop/analyze_cut.py#L912
 
     For row_order, consider row_order=reversed(list(range(data.ylevel.values.max()+1)))
+
+    May want to do this wrapped in `with sns.plotting_context("notebook"):` ?
     """
 
     with sns.plotting_context("notebook"):
@@ -333,25 +414,26 @@ def stacked_density_plot(
 
             def label(**kwargs):
                 """
-                kwargs is e.g.: {'color': (0.4918017777777778, 0.25275644444444445, 0.3333333333333333), 'label': 'Name of the row'}
+                default kwargs are color (RGB tuple) and label (name of the row)
+                other text options to consider passing in as kwargs:
+                    - fontweight="bold"
+                    - ha="right"
+                    - bbox=dict(facecolor='yellow', alpha=0.3)
                 """
-                color = kwargs["color"]
-                label = kwargs["label"]
+                color = kwargs.pop("color")
+                label = kwargs.pop("label")
                 ax = plt.gca()  # map() changes current axis repeatedly
                 # x=1 if plot_on_right else 0; ha="right" if plot_on_right else "left",
                 ax.text(
                     1.25,
                     0.5,
                     label,
-                    #                         fontweight="bold",
                     color=color,
-                    #                     ha="right",
                     ha="left",
                     va="center",
                     transform=ax.transAxes,
                     fontsize="x-small",
-                    #                                                        fontsize='x-large', #15,
-                    #                             bbox=dict(facecolor='yellow', alpha=0.3)
+                    **kwargs
                 )
 
             g.map(label)
@@ -372,23 +454,17 @@ def stacked_density_plot(
             g.despine(bottom=True, left=True)
 
             # fix x axis
-            g.set_xlabels(xlabel)
+            if xlabel is not None:
+                g.set_xlabels(xlabel)
 
             # resize
             if figsize:
                 g.fig.set_size_inches(figsize[0], figsize[1])
-            else:
-                cur_size = g.fig.get_size_inches()
-                increase_vertical = 3  # 7 #4 # 3
-                g.fig.set_size_inches(cur_size[0], cur_size[1] + increase_vertical)
 
             if suptitle is not None:
                 g.fig.suptitle(suptitle, fontsize="medium")
 
-            # tighten
-            g.fig.tight_layout()
-
-            # then reoverlap
+            # overlap
             if overlap:
                 g.fig.subplots_adjust(hspace=-0.1)
 

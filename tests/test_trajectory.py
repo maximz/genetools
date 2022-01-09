@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import random
 import matplotlib
+import seaborn as sns
 
 matplotlib.use("Agg")
 
@@ -139,6 +140,31 @@ def test_plot_trajectory_on_umap(adata, mean_ordering):
     return fig
 
 
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_stacked_density_plot(adata, mean_ordering):
+    plot_data = helpers.merge_into_left(adata.obs, mean_ordering)
+    return plots.stacked_density_plot(
+        data=plot_data,
+        cluster_label_key="louvain",
+        value_key="mean_order",
+        xlabel="Pseudotime",
+        suptitle="Mean pseudotime trajectory",
+    )
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"}, backend="Agg")
+def test_stacked_density_plot_overlap_no_labels(adata, mean_ordering):
+    plot_data = helpers.merge_into_left(adata.obs, mean_ordering)
+    return plots.stacked_density_plot(
+        data=plot_data,
+        cluster_label_key="louvain",
+        value_key="mean_order",
+        figsize=(6, 6),
+        palette=sns.color_palette("Set2"),
+        overlap=True,
+    )
+
+
 """
 Tutorial order:
 - roots choose, plot, get value counts by cluster
@@ -155,11 +181,6 @@ Tutorial order:
 - compare_trajectories
 - left merge mean_trajectory back
 - plot trajectory on umap
-
-TODO:
-
-# plot density
-# fig = plot_pseudotime_density(adata, suptitle="Pseudotime Coembed (mean trajectory)", cluster_label_key="cluster_label",value_key="mean_trajectory")
-
+- plot stacked density
 
 """
