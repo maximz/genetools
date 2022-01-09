@@ -1,11 +1,28 @@
 #!/usr/bin/env python
 
-"""Tests for `genetools` package."""
+"""Tests for trajectory analysis — tutorial order:
 
-from genetools.trajectory import spectral_order, standard_deviation_per_cell
+- roots choose, plot, get value counts by cluster
+- run trajectories
+- end points get value counts by cluster, and plot
+- stochasticity plot
+- mean order
+- spectral order:
+    n_trajectories_sample = 100  # number of trajectories to look at
+    n_cells_sample = 4400  # number of cells to look at
+    root_cell_key = 'root_cell'
+    barcode_key = 'full_barcode'
+    (After running: left merge into the obs?)
+- compare_trajectories
+- left merge mean_trajectory back
+- plot trajectory on umap
+- plot stacked density
+
+"""
+
+
 import pytest
 import numpy as np
-import pandas as pd
 import random
 import matplotlib
 import seaborn as sns
@@ -220,24 +237,3 @@ def test_stacked_density_plot_overlap_no_labels(adata, mean_ordering):
         palette=sns.color_palette("Set2"),
         overlap=True,
     )
-
-
-"""
-Tutorial order:
-- roots choose, plot, get value counts by cluster
-- run trajectories
-- end points get value counts by cluster, and plot
-- stochasticity plot
-- mean order
-- spectral order:
-    n_trajectories_sample = 100  # number of trajectories to look at
-    n_cells_sample = 4400  # number of cells to look at
-    root_cell_key = 'root_cell'
-    barcode_key = 'full_barcode'
-    (After running: left merge into the obs?)
-- compare_trajectories
-- left merge mean_trajectory back
-- plot trajectory on umap
-- plot stacked density
-
-"""
