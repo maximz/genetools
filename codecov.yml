@@ -2,3 +2,9 @@ coverage:
   ignore:
     - "tests"
     - "setup.py"
+  status:
+    project:
+      default:
+        # allow a 5% drop from the previous base commit coverage
+        target: auto
+        threshold: 5%

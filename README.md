@@ -64,11 +64,19 @@ make lint
 rm -r data
 make regen-test-data
 
-# run tests
+# run tests locally
+# this is done in a debian-based docker image to ensure image style matches what travis CI will produce
+make build-docker-test-image # whenever requirements_dev.txt change
 make test
 
-# generate baseline figures (run from root directory)
+# generate baseline figures (also happens in docker)
 make regen-snapshot-figures
+
+# regenerate test data, and baseline figures (also happens in docker)
+make regen-test-data
+
+# run tests locally without docker, therefore omitting the snapshot tests
+make test-without-figures
 
 # bump version before submitting a PR against master (all master commits are deployed)
 bump2version patch # possible: major / minor / patch
