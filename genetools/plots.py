@@ -143,8 +143,8 @@ def umap_scatter(
         # overlay: highlight cells
         if highlight_cell_names is not None:
             plt.scatter(
-                data.iloc[highlight_cell_names][umap_1_key],
-                data.iloc[highlight_cell_names][umap_2_key],
+                data.loc[highlight_cell_names][umap_1_key],
+                data.loc[highlight_cell_names][umap_2_key],
                 s=highlight_marker_size,
                 c=highlight_marker_color,
                 zorder=highlight_zorder,
