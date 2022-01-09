@@ -22,7 +22,7 @@ def test_find_all_markers(adata):
         not (cluster_markers_df["logfoldchanges"] < 0.25).any().any()
     ), "low logFC should be filtered out"
 
-    # make sure all expected output columns are present
+    # make sure all expected output columns are present (order doesn't matter)
     expected_col_list = [
         "scores",
         "gene",
@@ -32,7 +32,7 @@ def test_find_all_markers(adata):
         "louvain",
         "rank",
     ]
-    assert np.array_equal(cluster_markers_df.columns, expected_col_list)
+    assert set(cluster_markers_df.columns) == set(expected_col_list)
 
     # check cluster_key dtype (not categorical)
     assert (

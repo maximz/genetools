@@ -1,7 +1,7 @@
 # genetools: single-cell analysis recipes (work in progress)
 
 [![](https://img.shields.io/pypi/v/genetools.svg)](https://pypi.python.org/pypi/genetools)
-[![](https://img.shields.io/travis/maximz/genetools.svg)](https://travis-ci.com/maximz/genetools)
+[![CI](https://github.com/maximz/genetools/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/maximz/genetools/actions/workflows/ci.yaml)
 [![](https://img.shields.io/badge/docs-here-blue.svg)](https://genetools.maximz.com)
 [![](https://img.shields.io/github/stars/maximz/genetools?style=social)](https://github.com/maximz/genetools)
 [![codecov](https://codecov.io/gh/maximz/genetools/branch/master/graph/badge.svg)](https://codecov.io/gh/maximz/genetools)
@@ -65,7 +65,7 @@ rm -r data
 make regen-test-data
 
 # run tests locally
-# this is done in a debian-based docker image to ensure image style matches what travis CI will produce
+# this is done in a debian-based docker image to ensure image style matches what Github Actions CI will produce
 make build-docker-test-image # whenever requirements_dev.txt change
 make test
 
@@ -85,5 +85,5 @@ bump2version patch # possible: major / minor / patch
 ```
 
 CI:
-- Main: https://travis-ci.com/github/maximz/genetools
-- Docs: https://app.netlify.com/sites/genetools
+- Main: Github Actions
+- Docs: [https://app.netlify.com/sites/genetools](https://app.netlify.com/sites/genetools)

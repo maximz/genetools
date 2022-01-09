@@ -1,4 +1,4 @@
-# use debian-based python image to match travis CI matplotlib outputs
+# use debian-based python image to match Github Actions matplotlib outputs
 FROM python:3.8
 
 RUN mkdir /src

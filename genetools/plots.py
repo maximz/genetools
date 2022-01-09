@@ -93,7 +93,14 @@ def umap_scatter(
                 x=umap_1_key,
                 y=umap_2_key,
                 hue=hue_key,
-                palette=_verify_or_create_palette(discrete_palette, data, hue_key),
+                hue_order=(
+                    sorted(data[hue_key].unique()) if hue_key is not None else None
+                ),
+                palette=(
+                    _verify_or_create_palette(discrete_palette, data, hue_key)
+                    if hue_key is not None
+                    else None
+                ),
                 ax=ax,
                 legend="full",
                 alpha=1,

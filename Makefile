@@ -59,7 +59,7 @@ build-docker-test-image: requirements_dev.txt
 
 	docker build -t genetools-test .
 
-## run tests locally using the docker image that matches travis CI's platform
+## run tests locally using the docker image that matches Github Actions platform
 test: build-docker-test-image
 	docker run --rm -it -v $$(pwd):/src genetools-test pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results -vv;
 
@@ -67,9 +67,6 @@ test: build-docker-test-image
 test-without-figures:
 	# note: snapshot tests not run!
 	pytest --cov=./ --cov-report term --cov-report xml -vv;
-
-test-all: ## run tests on every Python version with tox
-	tox
 
 ## regenerate baseline figures
 regen-snapshot-figures: build-docker-test-image
