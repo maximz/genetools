@@ -2,7 +2,7 @@
 
 """Tests for `genetools` package."""
 
-from genetools.trajectory import spectral_order
+from genetools.trajectory import spectral_order, standard_deviation_per_cell
 import pytest
 import numpy as np
 import pandas as pd
@@ -92,6 +92,11 @@ def test_stochasticity_plot(trajectories):
 
 
 @pytest.fixture(scope="module")
+def stdev_by_cell(trajectories):
+    return trajectory.standard_deviation_per_cell(trajectories, "cell_barcode")
+
+
+@pytest.fixture(scope="module")
 def mean_ordering(trajectories):
     return trajectory.mean_order(trajectories, "cell_barcode")
 
@@ -150,18 +155,46 @@ def test_mean_vs_spectral_orderings(
     return fig
 
 
+# Note we can't parametrize with fixtures yet: https://docs.pytest.org/en/latest/proposals/parametrize_with_fixtures.html
+# So we split the  parametrization with mean_ordering, spectral_ordering, and standard deviation across three tests
 @pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
-def test_plot_trajectory_on_umap(adata, mean_ordering):
-    plot_data = helpers.merge_into_left(adata.obs, mean_ordering)
+def test_plot_mean_trajectory_on_umap(adata, mean_ordering):
+    return _umap_trajectory(adata, mean_ordering)
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_plot_stdev_trajectory_on_umap(adata, spectral_ordering):
+    return _umap_trajectory(adata, spectral_ordering)
+
+
+# high tolerance
+# this test is flaky because of randomness of choosing which cells are included in the spectral ordering?
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"}, tolerance=20)
+def test_plot_spectral_trajectory_on_umap(adata, stdev_by_cell):
+    return _umap_trajectory(adata, stdev_by_cell)
+
+
+def _umap_trajectory(adata, computed_trajectory):
+    plot_data = helpers.merge_into_left(
+        adata.obs, computed_trajectory.rename("computed_trajectory")
+    )
     fig, ax = plots.umap_scatter(
         data=plot_data,
         umap_1_key="umap_1",
         umap_2_key="umap_2",
-        hue_key="mean_order",
+        hue_key="computed_trajectory",
         continuous_hue=True,
         label_key="louvain",
     )
-    ax.set_title("Mean pseudotime trajectory")
+    ax.set_title("Computed pseudotime trajectory")
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_plot_dispersions(adata, mean_ordering, stdev_by_cell):
+    fig, _ = trajectory.plot_dispersions(
+        adata, mean_ordering, stdev_by_cell, hue_key="louvain"
+    )
     return fig
 
 

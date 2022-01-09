@@ -1,14 +1,12 @@
 # run on all
 import numpy as np
 import pandas as pd
-from genetools import plots, stats
+from genetools import plots, stats, helpers
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 
 def monte_carlo_pseudotime(adata_input, root_cells):
-    import scanpy as sc
-
     """[summary]
 
     TODO: document what must be done to adata before running dpt. i.e. PCA, neighbors, and diffmap.
@@ -17,11 +15,10 @@ def monte_carlo_pseudotime(adata_input, root_cells):
     :type adata_input: [type]
     :param root_cells: [description]
     :type root_cells: [type]
-    :param id_vars: Identifier variables in anndata obs to uniquely identify a cell. Will be passed through to output.
-    :type id_vars: [type]
     :return: [description]
     :rtype: [type]
     """
+    import scanpy as sc
 
     adata = adata_input.copy()
 
@@ -93,6 +90,10 @@ def plot_stochasticity(
     :type title: str, optional
     :return: [description]
     :rtype: [type]
+
+    # Note:
+    # expects percentile normalized pseudotime values,
+    # so that we have a roughly uniform number of values in each bin
     """
     df = trajectory_df.copy()
 
@@ -107,12 +108,6 @@ def plot_stochasticity(
     # change bin ID to be left-offset of bin instead
     df["bin_id"] = df["bin_id"].apply(lambda interval: interval.left)
 
-    # Note:
-    # expects percentile normalized pseudotime values,
-    # so that we have a roughly uniform number of values in each bin
-    # df["bin_id"].hist()
-    # TODO: confirm percentile normalized input
-
     # group by bin ID, count unique barcodes in that bin
     cells_by_bin = df.groupby("bin_id", sort=False)["cell_barcode"].nunique()
 
@@ -126,6 +121,100 @@ def plot_stochasticity(
     if title is not None:
         plt.title(title)
     return fig
+
+
+def plot_dispersions(
+    adata,
+    mean_pseudotime_per_cell,
+    std_pseudotime_per_cell,
+    hue_key=None,
+    palette=None,
+    figsize=(8, 6),
+    xlabel="Mean pseudotime per cell",
+    ylabel="Standard deviation of pseudotime per cell",
+    **kwargs
+):
+    """For each cell, scatter-plot the standard deviation against the mean of its pseudotimes across trajectories.
+
+    :param adata: [description]
+    :type adata: [type]
+    :param mean_pseudotime_per_cell: [description]
+    :type mean_pseudotime_per_cell: [type]
+    :param std_pseudotime_per_cell: [description]
+    :type std_pseudotime_per_cell: [type]
+    :param hue_key: [description], defaults to None
+    :type hue_key: [type], optional
+    :param palette: [description], defaults to None
+    :type palette: [type], optional
+    :param figsize: [description], defaults to (8,6)
+    :type figsize: tuple, optional
+    :raises ValueError: [description]
+    :return: [description]
+    :rtype: [type]
+    """
+    pseudotime_mean_key, pseudotime_std_key = "pseudotime_mean", "pseudotime_std"
+    if hue_key is not None and hue_key in [pseudotime_mean_key, pseudotime_std_key]:
+        raise ValueError(
+            "Cannot specify %s or %s as hue key, because they will be overwritten"
+            % (pseudotime_mean_key, pseudotime_std_key)
+        )
+
+    # align by common index
+    plot_data = helpers.merge_into_left(
+        adata.obs, mean_pseudotime_per_cell.rename(pseudotime_mean_key)
+    )
+    plot_data = helpers.merge_into_left(
+        plot_data, std_pseudotime_per_cell.rename(pseudotime_std_key)
+    )
+
+    # drop missing data
+    cols_keep = [pseudotime_mean_key, pseudotime_std_key]
+    if hue_key is not None:
+        cols_keep.append(hue_key)
+    plot_data = plot_data[cols_keep].dropna(how="any")
+
+    # plot
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.scatterplot(
+        data=plot_data,
+        x=pseudotime_mean_key,
+        y=pseudotime_std_key,
+        hue=hue_key,
+        palette=(
+            plots._verify_or_create_palette(palette, plot_data, hue_key)
+            if hue_key is not None
+            else None
+        ),
+        ax=ax,
+        legend="full",
+        **kwargs
+    )
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+
+    sns.despine(ax=ax)
+    plt.tight_layout()
+    plots._pull_legend_out_of_figure()
+
+    return fig, ax
+
+
+def standard_deviation_per_cell(trajectory_df, barcode_key="cell_barcode"):
+    """[summary]
+
+    :param trajectory_df: [description]
+    :type trajectory_df: [type]
+    :param barcode_key: [description], defaults to "cell_barcode"
+    :type barcode_key: str, optional
+    :return: [description]
+    :rtype: [type]
+    """
+    return (
+        trajectory_df.groupby([barcode_key], sort=False)["pseudotime"]
+        .std()
+        .rename("stdev_across_trajectories")
+    )
 
 
 def mean_order(trajectory_df, barcode_key="cell_barcode"):
@@ -150,8 +239,9 @@ def mean_order(trajectory_df, barcode_key="cell_barcode"):
 
     :param trajectory_df: [description]
     :type trajectory_df: [type]
-    :param barcode_key: [description]
-    :type barcode_key: [type]
+    :param barcode_key: [description], defaults to "cell_barcode"
+    :type barcode_key: str, optional
+    :raises ValueError: [description]
     :return: [description]
     :rtype: [type]
     """
@@ -197,12 +287,14 @@ def spectral_order(
     Previously, we were creating dense similarity matrix, where the similarity measure between two cells `i, j` is the sum over all other cells `k` of $1 - abs(P_{i,j} - P_{j,k})$. The intuition is that this gives you the ranking similarity between any two cells by comparing their probabilities of being ranked higher than other reference cells. Now are are simplifying how to create this similarity matrix.
 
 
+    # Note: expects percentile normalized input
+
     :param trajectory_df: [description]
     :type trajectory_df: [type]
-    :param root_cell_key: [description]
-    :type root_cell_key: [type]
-    :param barcode_key: [description]
-    :type barcode_key: [type]
+    :param root_cell_key: [description], defaults to "root_cell"
+    :type root_cell_key: str, optional
+    :param barcode_key: [description], defaults to "cell_barcode"
+    :type barcode_key: str, optional
     :param n_trajectories_sample: [description], defaults to None
     :type n_trajectories_sample: [type], optional
     :param n_cells_sample: [description], defaults to None
@@ -211,8 +303,6 @@ def spectral_order(
     :return: [description]
     :rtype: [type]
     """
-
-    # TODO: confirm percentile normalized input
 
     import scipy.sparse
     from scipy.sparse.csgraph import laplacian
