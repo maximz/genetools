@@ -152,7 +152,7 @@ def test_stacked_density_plot(adata, mean_ordering):
     )
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"}, backend="Agg")
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
 def test_stacked_density_plot_overlap_no_labels(adata, mean_ordering):
     plot_data = helpers.merge_into_left(adata.obs, mean_ordering)
     return plots.stacked_density_plot(

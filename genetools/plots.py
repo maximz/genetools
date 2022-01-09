@@ -384,8 +384,6 @@ def _stacked_density_facetgrid(
     Adapted from old work at https://github.com/hammerlab/infino/blob/develop/analyze_cut.py#L912
 
     For row_order, consider row_order=reversed(list(range(data.ylevel.values.max()+1)))
-
-    May want to do this wrapped in `with sns.plotting_context("notebook"):` ?
     """
 
     with sns.plotting_context("notebook"):
@@ -463,6 +461,9 @@ def _stacked_density_facetgrid(
 
             if suptitle is not None:
                 g.fig.suptitle(suptitle, fontsize="medium")
+
+            # tighten
+            g.fig.tight_layout()
 
             # overlap
             if overlap:
