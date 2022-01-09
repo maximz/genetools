@@ -88,25 +88,19 @@ def umap_scatter(
             fig.colorbar(g)
         else:
             # plot discrete hues
-
-            # create colors
-            n_colors = data[hue_key].nunique()
-            if not discrete_palette:
-                discrete_palette = sns.color_palette("Spectral", n_colors=n_colors)
-
-            if len(discrete_palette) < n_colors:
-                raise ValueError("Not enough colors in palette")
-
-            # subset to exact number of colors we need (otherwise seaborn throws error)
-            discrete_palette = discrete_palette[:n_colors]
-
-            # plot
             g = sns.scatterplot(
                 data=data,
                 x=umap_1_key,
                 y=umap_2_key,
                 hue=hue_key,
-                palette=discrete_palette,
+                hue_order=(
+                    sorted(data[hue_key].unique()) if hue_key is not None else None
+                ),
+                palette=(
+                    _verify_or_create_palette(discrete_palette, data, hue_key)
+                    if hue_key is not None
+                    else None
+                ),
                 ax=ax,
                 legend="full",
                 alpha=1,
@@ -133,14 +127,56 @@ def umap_scatter(
 
         sns.despine(ax=ax)
 
+        plt.tight_layout()
+
         # pull legend outside figure to the right
         # https://stackoverflow.com/a/34579525/130164
         # https://matplotlib.org/tutorials/intermediate/legend_guide.html#legend-location
         # note: this expands figsize so you have to savefig with bbox_inches='tight'
         if not continuous_hue:
-            plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
+            _pull_legend_out_of_figure()
 
         return fig, ax
+
+
+def _verify_or_create_palette(palette, data, hue_key):
+    """Verify that a particular discrete color palette has the right number of colors (subsetting if necessary).
+    Or if no color palette was provided by the user, return a default color palette.
+
+    :param palette: color palette for discrete hues if the user has supplied one, otherwise None
+    :type palette: matplotlib palette name, list of colors, or dict mapping hue values to colors, or None
+    :param data: dataframe containing observations and associated hues
+    :type data: pandas.DataFrame
+    :param hue_key: name of column in dataframe that lists hues
+    :type hue_key: str
+    :raises ValueError: if user-supplied palette has fewer colors than the number of hues in the data
+    :return: a color palette for plotting
+    :rtype: list of colors
+    """
+    n_colors = data[hue_key].nunique()
+
+    if not palette:
+        # create colors
+        palette = sns.color_palette("Spectral", n_colors=n_colors)
+
+    # confirm number of colors
+    if len(palette) < n_colors:
+        raise ValueError("Not enough colors in palette")
+
+    # subset to exact number of colors we need (otherwise seaborn throws error)
+    # TODO: make this work with matplotlib palette names or dicts mapping hue values to colors
+    return palette[:n_colors]
+
+
+def _pull_legend_out_of_figure():
+    """Pull legend outside figure to the right.
+    Note: this expands figsize so you have to savefig with bbox_inches='tight'
+
+    See:
+        - https://stackoverflow.com/a/34579525/130164
+        - https://matplotlib.org/tutorials/intermediate/legend_guide.html#legend-location
+    """
+    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
 
 
 def horizontal_stacked_bar_plot(

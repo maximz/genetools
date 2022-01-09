@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help
+.PHONY: clean clean-test clean-pyc clean-build docs help build-docker-test-image
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -50,14 +50,31 @@ clean-test: ## remove test and coverage artifacts
 lint:
 	pre-commit run --all-files --show-diff-on-failure
 
-test: ## run tests quickly with the default Python
-	pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results -vv
+build-docker-test-image: requirements_dev.txt
+	# rerun this when pip requirements change
 
-test-all: ## run tests on every Python version with tox
-	tox
+	# if this is slow, check size of local directory
+	# may have accidentally installed a bunch of python environments in .tox/
+	# to fix: make clean-test
 
-regen-tests: ## regenerate baseline figures
-	pytest --mpl-generate-path=tests/baseline
+	docker build -t genetools-test .
+
+## run tests locally using the docker image that matches Github Actions platform
+test: build-docker-test-image
+	docker run --rm -it -v $$(pwd):/src genetools-test pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results -vv;
+
+# run tests locally, without docker, therefore omitting the snapshot tests
+test-without-figures:
+	# note: snapshot tests not run!
+	pytest --cov=./ --cov-report term --cov-report xml -vv;
+
+## regenerate baseline figures
+regen-snapshot-figures: build-docker-test-image
+	docker run --rm -it -v $$(pwd):/src genetools-test pytest --mpl-generate-path=tests/baseline;
+
+## regenerate saved test data (and baseline figures)
+regen-test-data: build-docker-test-image
+	docker run --rm -it -v $$(pwd):/src genetools-test pytest --mpl-generate-path=tests/baseline --regenerate-anndata;
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source genetools -m pytest

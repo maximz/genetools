@@ -1,6 +1,8 @@
 .DS_Store
 
-data/
+data/pbmc3k_raw.h5ad
+data/pbmc3k.h5ad
+
 tests/results/
 
 # Byte-compiled / optimized / DLL files
