@@ -5,6 +5,6 @@ __email__ = "maxim@maximz.com"
 __version__ = "0.4.0"
 
 # We want genetools.[submodule].[function] to be accessible simply by importing genetools, without having to import genetools.[submodule]
-from . import helpers, plots, scanpy_helpers, stats
+from . import helpers, plots, scanpy_helpers, stats, trajectory
 
-__all__ = ["helpers", "plots", "scanpy_helpers", "stats"]
+__all__ = ["helpers", "plots", "scanpy_helpers", "stats", "trajectory"]

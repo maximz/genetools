@@ -29,6 +29,11 @@ def umap_scatter(
     label_color="k",
     label_alpha=0.5,
     label_size=20,
+    highlight_cell_names=None,
+    highlight_marker_size=30,
+    highlight_marker_color="r",
+    highlight_zorder=5,
+    highlight_marker_style="s",
 ):
     """Simple umap scatter plot, with legend outside figure.
 
@@ -68,6 +73,16 @@ def umap_scatter(
     :type label_alpha: float, optional
     :param label_size: size of cluster labels, defaults to 20
     :type label_size: int, optional
+    :param highlight_cell_names: [description]
+    :type highlight_cell_names: [type]
+    :param highlight_marker_size: [description], defaults to 30
+    :type highlight_marker_size: int, optional
+    :param highlight_marker_color: [description], defaults to 'r'
+    :type highlight_marker_color: str, optional
+    :param highlight_zorder: [description], defaults to 5
+    :type highlight_zorder: int, optional
+    :param highlight_marker_style: [description], defaults to 's'
+    :type highlight_marker_style: str, optional
     :return: matplotlib figure and axes
     :rtype: (matplotlib.Figure, matplotlib.Axes)
     """
@@ -124,6 +139,17 @@ def umap_scatter(
                     color=label_color,
                     zorder=label_z_order,
                 )
+
+        # overlay: highlight cells
+        if highlight_cell_names is not None:
+            plt.scatter(
+                data.loc[highlight_cell_names][umap_1_key],
+                data.loc[highlight_cell_names][umap_2_key],
+                s=highlight_marker_size,
+                c=highlight_marker_color,
+                zorder=highlight_zorder,
+                marker=highlight_marker_style,
+            )
 
         sns.despine(ax=ax)
 
@@ -260,112 +286,189 @@ def horizontal_stacked_bar_plot(
 ####
 
 
-# def stacked_density_plot(
-#     data,
-#     row_var,
-#     hue_var,
-#     value_var,
-#     col_var=None,
-#     overlap=False,
-#     suptitle=None,
-#     figsize=None,
-#     hue_order=None,
-#     row_order=None,
-#     palette=None,
-# ):
-#     """
-#     Multiple density plot.
-#     Adapted from old work at https://github.com/hammerlab/infino/blob/develop/analyze_cut.py#L912
+def stacked_density_plot(
+    data,
+    cluster_label_key,
+    value_key,
+    xlabel=None,
+    suptitle=None,
+    figsize=(6, 8.5),
+    palette=None,
+    overlap=False,
+    **kwargs
+):
+    """Plot probability densities by class.
 
-#     For row_order, consider row_order=reversed(list(range(data.ylevel.values.max()+1)))
-#     """
+    :param data: A dataframe where each row represents one observation belonging to a particular class.
+    :type data: pandas.DataFrame
+    :param cluster_label_key: Column name identifying the class of each observation.
+    :type cluster_label_key: str
+    :param value_key: Column name identifying the observation value. Values should range from 0 to 1.
+    :type value_key: str
+    :param xlabel: X-axis label, defaults to None
+    :type xlabel: str, optional
+    :param suptitle: Figure title above stacked density plot grid, defaults to None
+    :type suptitle: str, optional
+    :param figsize: Figure size, defaults to (6, 8.5)
+    :type figsize: tuple, optional
+    :param palette: Color palette for each class, defaults to None (in which case default palette used)
+    :type palette: matplotlib palette name, list of colors, or dict mapping class values to colors, optional
+    :param overlap: Whether to overlap the stacked density curves, defaults to False
+    :type overlap: bool, optional
+    :return: Figure
+    :rtype: matplotlib.Figure
+    """
+    ## 1. remove without one-cell clusters because we can't draw a density for those
 
-#     with sns.plotting_context("notebook"):
-#         with sns.axes_style("white", rc={"axes.facecolor": (0, 0, 0, 0)}):
-#             g = sns.FacetGrid(
-#                 data,
-#                 row=row_var,
-#                 hue=hue_var,
-#                 col=col_var,
-#                 row_order=row_order,
-#                 hue_order=hue_order,
-#                 aspect=15,
-#                 height=0.5,
-#                 palette=palette,
-#                 sharey=False,  # important -- they don't share y ranges.
-#             )
+    clusters_to_keep = data[cluster_label_key].value_counts()
+    clusters_to_keep = clusters_to_keep[clusters_to_keep > 1].index.tolist()
+    plot_df = data[data[cluster_label_key].isin(clusters_to_keep)].copy()
 
-#             ## Draw the densities in a few steps
-#             # this is the shaded area
-#             g.map(sns.kdeplot, value_var, clip_on=False, shade=True, alpha=0.8, lw=2)
+    # TODO: bring back debug logging:
+    # print("Removed 1-cell clusters")
+    # print(data.shape, "-->", plot_df.shape)
 
-#             # this is the dividing horizontal line
-#             g.map(plt.axhline, y=0, lw=2, clip_on=False, ls="dashed")
+    ## 2. Set a new ylevel that only contains the remaining clusters
 
-#             ### Add label for each facet.
+    # problem with using cluster_label_key as ylevel:
+    # it's possibly a Categorical so it still contains the empty levels, so now those will have empty rows attached
+    # just convert back to strings from categorical
+    plot_df[cluster_label_key] = plot_df[cluster_label_key].astype("str")
 
-#             def label(**kwargs):
-#                 """
-#                 kwargs is e.g.: {'color': (0.4918017777777778, 0.25275644444444445, 0.3333333333333333), 'label': 'Name of the row'}
-#                 """
-#                 color = kwargs["color"]
-#                 label = kwargs["label"]
-#                 ax = plt.gca()  # map() changes current axis repeatedly
-#                 # x=1 if plot_on_right else 0; ha="right" if plot_on_right else "left",
-#                 ax.text(
-#                     1.25,
-#                     0.5,
-#                     label,
-#                     #                         fontweight="bold",
-#                     color=color,
-#                     #                     ha="right",
-#                     ha="left",
-#                     va="center",
-#                     transform=ax.transAxes,
-#                     fontsize="x-small",
-#                     #                                                        fontsize='x-large', #15,
-#                     #                             bbox=dict(facecolor='yellow', alpha=0.3)
-#                 )
+    ## 3. Set row order
 
-#             g.map(label)
+    # sort rows by median value
+    # so we have nicely increasing densities as we go down the plot
+    ylevel_order = (
+        plot_df.groupby(cluster_label_key)[value_key]
+        .median()
+        .sort_values()
+        .index.tolist()
+    )
 
-#             ## Beautify the plot.
-#             g.set(xlim=(-0.01, 1.01))
-#             # seems to do the trick along with sharey=False
-#             g.set(ylim=(0, None))
+    ## 4. Plot.
 
-#             # Some `subplots_adjust` line is necessary. without this, nothing appears
-#             if not overlap:
-#                 g.fig.subplots_adjust(hspace=0)
+    return _stacked_density_facetgrid(
+        plot_df,
+        row_var=cluster_label_key,
+        hue_var=cluster_label_key,
+        value_var=value_key,
+        xlabel=xlabel,
+        overlap=overlap,
+        suptitle=suptitle,
+        figsize=figsize,
+        row_order=ylevel_order,
+        palette=palette,
+        **kwargs
+    )
 
-#             # Remove axes details that don't play will with overlap
-#             g.set_titles("")
-#             # g.set_titles(col_template="{col_name}", row_template="")
-#             g.set(yticks=[], ylabel="")
-#             g.despine(bottom=True, left=True)
 
-#             # fix x axis
-#             g.set_xlabels("Pseudotime")
+def _stacked_density_facetgrid(
+    data,
+    row_var,
+    hue_var,
+    value_var,
+    xlabel=None,
+    col_var=None,
+    overlap=False,
+    suptitle=None,
+    figsize=None,
+    hue_order=None,
+    row_order=None,
+    palette=None,
+):
+    """
+    Customizable multiple rows+columns density plot.
 
-#             # resize
-#             if figsize:
-#                 g.fig.set_size_inches(figsize[0], figsize[1])
-#             else:
-#                 cur_size = g.fig.get_size_inches()
-#                 increase_vertical = 3  # 7 #4 # 3
-#                 g.fig.set_size_inches(cur_size[0], cur_size[1] + increase_vertical)
+    Adapted from old work at https://github.com/hammerlab/infino/blob/develop/analyze_cut.py#L912
 
-#             if suptitle is not None:
-#                 g.fig.suptitle(suptitle, fontsize="medium")
+    For row_order, consider row_order=reversed(list(range(data.ylevel.values.max()+1)))
+    """
 
-#             # tighten
-#             g.fig.tight_layout()
+    with sns.plotting_context("notebook"):
+        with sns.axes_style("white", rc={"axes.facecolor": (0, 0, 0, 0)}):
+            grid = sns.FacetGrid(
+                data,
+                row=row_var,
+                hue=hue_var,
+                col=col_var,
+                row_order=row_order,
+                hue_order=hue_order,
+                aspect=15,
+                height=0.5,
+                palette=palette,
+                sharey=False,  # important -- they don't share y ranges.
+            )
 
-#             # then reoverlap
-#             if overlap:
-#                 g.fig.subplots_adjust(hspace=-0.1)
+            ## Draw the densities in a few steps
+            # this is the shaded area
+            grid.map(sns.kdeplot, value_var, clip_on=False, shade=True, alpha=0.8, lw=2)
 
-#             return g, g.fig
+            # this is the dividing horizontal line
+            grid.map(plt.axhline, y=0, lw=2, clip_on=False, ls="dashed")
+
+            ### Add label for each facet.
+
+            def label(**kwargs):
+                """
+                default kwargs are color (RGB tuple) and label (name of the row)
+                other text options to consider passing in as kwargs:
+                    - fontweight="bold"
+                    - ha="right"
+                    - bbox=dict(facecolor='yellow', alpha=0.3)
+                """
+                color = kwargs.pop("color")
+                label = kwargs.pop("label")
+                ax = plt.gca()  # map() changes current axis repeatedly
+                # x=1 if plot_on_right else 0; ha="right" if plot_on_right else "left",
+                ax.text(
+                    1.25,
+                    0.5,
+                    label,
+                    color=color,
+                    ha="left",
+                    va="center",
+                    transform=ax.transAxes,
+                    fontsize="x-small",
+                    **kwargs
+                )
+
+            grid.map(label)
+
+            ## Beautify the plot.
+            grid.set(xlim=(-0.01, 1.01))
+            # seems to do the trick along with sharey=False
+            grid.set(ylim=(0, None))
+
+            # Some `subplots_adjust` line is necessary. without this, nothing appears
+            if not overlap:
+                grid.fig.subplots_adjust(hspace=0)
+
+            # Remove axes details that don't play will with overlap
+            grid.set_titles("")
+            # g.set_titles(col_template="{col_name}", row_template="")
+            grid.set(yticks=[], ylabel="")
+            grid.despine(bottom=True, left=True)
+
+            # fix x axis
+            if xlabel is not None:
+                grid.set_xlabels(xlabel)
+
+            # resize
+            if figsize:
+                grid.fig.set_size_inches(figsize[0], figsize[1])
+
+            if suptitle is not None:
+                grid.fig.suptitle(suptitle, fontsize="medium")
+
+            # tighten
+            grid.fig.tight_layout()
+
+            # overlap
+            if overlap:
+                grid.fig.subplots_adjust(hspace=-0.1)
+
+            return grid.fig
 
 
 # TODO: density umap plot

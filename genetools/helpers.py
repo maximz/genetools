@@ -60,6 +60,28 @@ def merge_into_left(left, right, **kwargs):
     return df
 
 
+def sample_cells_from_clusters(obs_df, n_cells, cluster_key, cluster_names):
+    """[summary]
+
+    :param obs_df: [description]
+    :type obs_df: [type]
+    :param n_cells: [description]
+    :type n_cells: [type]
+    :param cluster_key: [description]
+    :type cluster_key: [type]
+    :param cluster_names: [description]
+    :type cluster_names: [type]
+    :return: [description]
+    :rtype: [type]
+    """
+    return (
+        obs_df[obs_df[cluster_key].isin(cluster_names)]
+        .index.to_series()
+        .sample(n_cells)
+        .values
+    )
+
+
 def horizontal_concat(df_left, df_right):
     """Concatenate df_right horizontally to df_left, with no checks for whether the indexes match, but confirming final shape.
 
