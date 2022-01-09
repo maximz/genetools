@@ -80,6 +80,12 @@ def test_get_end_points(trajectories, roots):
     assert all(df["pseudotime"]) == 1.0
 
 
+@pytest.mark.xfail(raises=ValueError)
+def test_get_cells_at_percentile_bounds(trajectories):
+    # reject if not a percentile
+    trajectory.get_cells_at_percentile(trajectories, 50)
+
+
 @pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
 def test_stochasticity_plot(trajectories):
     return trajectory.plot_stochasticity(trajectories)
@@ -95,6 +101,20 @@ def spectral_ordering(trajectories):
     return trajectory.spectral_order(trajectories, "root_cell", "cell_barcode")
 
 
+@pytest.mark.xfail(raises=ValueError)
+def test_mean_ordering_rejects_unreachable_cells(trajectories):
+    df = trajectories.copy()
+    df["pseudotime"] = np.nan
+    trajectory.mean_order(df, "cell_barcode")
+
+
+@pytest.mark.xfail(raises=ValueError)
+def test_spectral_ordering_rejects_unreachable_cells(trajectories):
+    df = trajectories.copy()
+    df["pseudotime"] = np.nan
+    trajectory.spectral_order(df, "root_cell", "cell_barcode")
+
+
 @pytest.mark.mpl_image_compare
 def test_mean_vs_spectral_orderings(
     adata, trajectories, mean_ordering, spectral_ordering
@@ -104,12 +124,17 @@ def test_mean_vs_spectral_orderings(
         # check range
         assert all(series >= 0.0), series.name
         assert all(series <= 1.0), series.name
+
         # no NaNs
         assert not any(series.isna()), series.name
+
         # every cell barcode included (exception: spectral order takes a subset)
         assert series.shape[0] <= trajectories["cell_barcode"].nunique(), series.name
+
         # no duplicate barcodes, i.e. only one entry per cell barcode
+        # we want no repeats in the order
         assert not any(series.index.duplicated()), series.name
+
         # test merge back into adata obs, to confirm mergeability and validate 1:1
         helpers.merge_into_left(adata.obs, series)
 
@@ -159,7 +184,6 @@ def test_stacked_density_plot_overlap_no_labels(adata, mean_ordering):
         data=plot_data,
         cluster_label_key="louvain",
         value_key="mean_order",
-        figsize=(6, 6),
         palette=sns.color_palette("Set2"),
         overlap=True,
     )

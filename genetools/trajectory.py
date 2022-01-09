@@ -221,6 +221,9 @@ def spectral_order(
     import anndata
     import scanpy as sc
 
+    if any(trajectory_df["pseudotime"].isna()):
+        raise ValueError("Some cells are unreachable (NaN pseudotimes)")
+
     if not n_cells_sample:
         # default to 20% of cells
         n_cells_sample = int(trajectory_df[barcode_key].nunique() * 0.2)
@@ -303,11 +306,6 @@ def spectral_order(
     spectral_order_series = pd.Series(
         np.arange(len(order)) / len(order), index=order, name="spectral_order"
     )
-
-    # want no repeats in the order, i.e. all value counts should be 1
-    if not all(spectral_order_series.reset_index()["index"].value_counts() == 1):
-        # TODO: try not any(spectral_order_series.index.duplicated()) for clarity instead?
-        raise ValueError("Unexpected repeats in the spectral ordering")
 
     # sometimes eigenvector signs will be flipped, giving the reverse ordering.
     # in these cases we should just reverse the ordering.
