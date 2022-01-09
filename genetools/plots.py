@@ -133,6 +133,8 @@ def umap_scatter(
 
         sns.despine(ax=ax)
 
+        plt.tight_layout()
+
         # pull legend outside figure to the right
         # https://stackoverflow.com/a/34579525/130164
         # https://matplotlib.org/tutorials/intermediate/legend_guide.html#legend-location
