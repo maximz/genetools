@@ -1,5 +1,6 @@
 import collections
-from dataclasses import dataclass
+import dataclasses
+import matplotlib as mpl
 
 
 def convert_palette_list_to_dict(palette, hue_names, sort_hues=True):
@@ -19,15 +20,17 @@ def convert_palette_list_to_dict(palette, hue_names, sort_hues=True):
     return {k: v for k, v in zip(hue_names, palette)}
 
 
-@dataclass
+@dataclasses.dataclass
 class HueValueStyle:
-    """Describes how to style scatterplot markers for a particular value (i.e. category) of a categorical hue column."""
+    """
+    Describes how to style scatterplot markers for a particular value (i.e. category) of a categorical hue column.
+    For face and edge colors, None is the default value. to disable them, set to string 'none'.
+    """
 
     color: str
     marker: str = None
-    marker_size_scale_factor: float = 1.0
+    marker_size: int = None
     legend_size_scale_factor: float = 1.0
-    # for face and edge colors, None is the default value. to disable them, set to string "none"
     facecolors: str = None
     edgecolors: str = None
     linewidths: float = None
@@ -46,3 +49,66 @@ class HueValueStyle:
         if isinstance(s, cls):
             return s
         return cls(color=s)
+
+    def apply_defaults(self, defaults: "HueValueStyle"):
+        """
+        Returns new HueValueStyle that applies defaults:
+        Modifies this style to fill any missing values with the values from another HueValueStyle.
+        """
+        # The type hint is quoted because inside of the HueValuStyle class, the class itself is not defined yet. https://stackoverflow.com/a/44798831/130164
+
+        # returns copy
+        # we are detecting unset values by checking whether they are None
+        # to make this more robust, we should compare to each field's default value or default factory
+        # see https://stackoverflow.com/a/56452356/130164
+
+        changes = {
+            field.name: getattr(defaults, field.name)
+            for field in dataclasses.fields(defaults)
+            if getattr(self, field.name) is None
+        }
+        return dataclasses.replace(self, **changes)
+
+    def render_scatter_props(self):
+        """Returns kwargs to pass to ax.scatter() to apply this style."""
+        return dict(
+            color=self.color,
+            marker=self.marker,
+            s=self.marker_size,
+            facecolors=self.facecolors,
+            edgecolors=self.edgecolors,
+            linewidths=self.linewidths,
+            zorder=self.zorder,
+            alpha=self.alpha,
+        )
+
+    def render_scatter_continuous_props(self):
+        """Returns kwargs to pass to ax.scatter() to apply this style, in the context of continuous cmap scatterplots."""
+        return dict(
+            marker=self.marker,
+            s=self.marker_size,
+            edgecolors=self.edgecolors,
+            linewidths=self.linewidths,
+            zorder=self.zorder,
+            alpha=self.alpha,
+        )
+
+    def render_scatter_legend_props(self):
+        """Returns kwargs to pass to ax.legend() to apply this style."""
+        # apply scaling to the default marker size we'd get by calling ax.scatter without any size arguments.
+        legend_marker_size = (
+            mpl.rcParams["lines.markersize"] ** 2
+        ) * self.legend_size_scale_factor
+
+        return dict(
+            color=self.color,
+            marker=self.marker,
+            s=legend_marker_size,
+            facecolors=self.facecolors,
+            edgecolors=self.edgecolors,
+            linewidths=self.linewidths,
+        )
+
+    def render_rectangle_props(self):
+        """Returns kwargs to pass to ax.bar() to apply this style."""
+        return dict(color=self.color, hatch=self.hatch)

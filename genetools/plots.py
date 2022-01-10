@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -111,6 +110,14 @@ def scatterplot(
     # store PathCollection returned by ax.scatter
     scattered_object = None
 
+    default_style = HueValueStyle(
+        color=na_color,
+        marker=marker,
+        marker_size=marker_size,
+        edgecolors=marker_edge_color,
+        alpha=alpha,
+    )
+
     if continuous_hue:
         # plot continuous variable with a colorbar
         scattered_object = ax.scatter(
@@ -118,9 +125,7 @@ def scatterplot(
             data[y_axis_key].values,
             c=data[hue_key].values,
             cmap=continuous_cmap,
-            s=marker_size,
-            marker=marker,
-            edgecolors=marker_edge_color,
+            **default_style.render_scatter_continuous_props(),
             plotnonfinite=plotnonfinite,
             **kwargs,
         )
@@ -147,25 +152,15 @@ def scatterplot(
             # if what's in palette is just a color, not a HueValueStyle, cast into HueValueStyle, i.e. apply default marker style with palette color
             # if this hue value is not a key in the palette dict at all, then fall back to na_color color and default marker style
             marker_style: HueValueStyle = HueValueStyle.from_color(
-                discrete_palette.get(hue_value, HueValueStyle(color=na_color))
+                discrete_palette.get(hue_value, default_style)
             )
-            # TODO: set defaults using passed in parameters, and store back in discrete_palette for use in legend too
+            # set defaults using passed in parameters
+            marker_style = marker_style.apply_defaults(default_style)
 
             scattered_object = ax.scatter(
                 hue_df[x_axis_key].values,
                 hue_df[y_axis_key].values,
-                color=marker_style.color,
-                s=marker_size * marker_style.marker_size_scale_factor,
-                marker=marker_style.marker
-                if marker_style.marker is not None
-                else marker,
-                facecolors=marker_style.facecolors,
-                edgecolors=marker_style.edgecolors
-                if marker_style.edgecolors is not None
-                else marker_edge_color,
-                linewidths=marker_style.linewidths,
-                zorder=marker_style.zorder,
-                alpha=marker_style.alpha if marker_style.alpha is not None else alpha,
+                **marker_style.render_scatter_props(),
                 plotnonfinite=plotnonfinite,
                 **kwargs,
             )
@@ -203,13 +198,10 @@ def scatterplot(
                 # if what's in palette is just a color, not a HueValueStyle, cast into HueValueStyle, i.e. apply default marker style with palette color
                 # if this hue value is not a key in the palette dict at all, then fall back to na_color color and default marker style
                 marker_style: HueValueStyle = HueValueStyle.from_color(
-                    discrete_palette.get(hue_value, HueValueStyle(color=na_color))
+                    discrete_palette.get(hue_value, default_style)
                 )
-
-                # apply scaling to the default marker size we'd get by calling ax.scatter without any size arguments.
-                legend_marker_size = (
-                    mpl.rcParams["lines.markersize"] ** 2
-                ) * marker_style.legend_size_scale_factor
+                # set defaults using passed in parameters
+                marker_style = marker_style.apply_defaults(default_style)
 
                 # Convert all to string so we can sort even if mixed input types like ["M", "F", np.nan]
                 hue_value = str(hue_value)
@@ -219,12 +211,7 @@ def scatterplot(
                         [],
                         [],
                         label=hue_value,
-                        color=marker_style.color,
-                        marker=marker_style.marker,
-                        s=legend_marker_size,
-                        facecolors=marker_style.facecolors,
-                        edgecolors=marker_style.edgecolors,
-                        linewidths=marker_style.linewidths,
+                        **marker_style.render_scatter_legend_props(),
                     )
                 )
 
@@ -423,8 +410,7 @@ def stacked_bar_plot(
                 hue_data[value_key].values,
                 align="center",
                 label=hue_name,
-                color=hue_style.color,
-                hatch=hue_style.hatch,
+                **hue_style.render_rectangle_props(),
                 **{
                     ("bottom" if vertical else "left"): (
                         hue_data[cum_value_key] - hue_data[value_key]
