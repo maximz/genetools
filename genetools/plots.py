@@ -349,6 +349,7 @@ def stacked_bar_plot(
     :rtype: (matplotlib.Figure, matplotlib.Axes)
 
     must supply ax or figsize
+    hue_order is applied from beginning (bottom or left) to the end (top or right) of the bar
     """
 
     if value_key is None:
@@ -363,28 +364,29 @@ def stacked_bar_plot(
 
     plot_df = data[[index_key, value_key, hue_key]].copy()
 
-    # Convert all fields to strings so we can sort, even if mixed input types like strings and nan,
-    # and so they behave categorically, not numerically
+    # Convert all fields to string or categorical dtypes so we can sort, even if mixed input types like strings and nan,
+    # and so they behave categorically, not numerically.
     for col in [index_key, hue_key]:
-        plot_df[col] = plot_df[col].astype(str)
+        plot_df[col] = plot_df[col].astype("category")
 
     if normalize:
         # Normalize values to sum to 1 per row
-        plot_df[value_key] = plot_df.groupby(index_key)[value_key].apply(
+        plot_df[value_key] = plot_df.groupby(index_key, sort=False)[value_key].apply(
             lambda g: g / g.sum()
         )
 
-    # Sort so we maintain consistent order before we calculate cumulative value
-    # This ensures that the hues are in the same order for every bar
+    # Sort so we maintain consistent order before we calculate cumulative value.
+    # This ensures that the hues are in the same order for every bar.
+    # This also applies the hue_order if one was supplied, because we set the categories as ordered.
+    if hue_order is None:
+        hue_order = sorted(plot_df[hue_key].unique())
+    plot_df[hue_key] = plot_df[hue_key].cat.set_categories(hue_order, ordered=True)
     plot_df = plot_df.sort_values([index_key, hue_key])
 
     # Accumulate value with every subsequent box/hue as we go across each index/row
     # These will become row-level "left offsets" for each hue
     cum_value_key = value_key + "_cumulative_value"
     plot_df[cum_value_key] = plot_df.groupby(index_key, sort=False)[value_key].cumsum()
-
-    if hue_order is None:
-        hue_order = plot_df[hue_key].unique()
 
     # create colors
     if palette is None:
@@ -416,7 +418,8 @@ def stacked_bar_plot(
             )
 
             plot_func(
-                hue_data[index_key].values,
+                # convert to string in case this was a numerical column, so matplotlib plots it as a categorical variable
+                hue_data[index_key].values.astype(str),
                 hue_data[value_key].values,
                 align="center",
                 label=hue_name,
@@ -433,7 +436,19 @@ def stacked_bar_plot(
 
         if enable_legend:
             legend_title = legend_title if legend_title is not None else hue_key
+
+            # get current legend items
+            handles, labels = ax.get_legend_handles_labels()
+            if vertical:
+                # When plotting vertical stacked bar plot:
+                # We plot from bottom to top, so the top-most bar is the last one in the legend list.
+                # It makes more sense to reverse the legend order, so top-most bar corresponds to top-most legend item.
+                handles = reversed(handles)
+                labels = reversed(labels)
+
             leg = ax.legend(
+                handles=handles,
+                labels=labels,
                 # place legend outside figure
                 bbox_to_anchor=(1.05, 0.5),
                 loc="center left",

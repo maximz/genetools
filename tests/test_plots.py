@@ -127,7 +127,7 @@ def test_stacked_bar_plot_autocompute_frequencies():
             hue_order=["Not expanded", "Expanded"],
             palette=palette,
             ax=ax,
-            legend_title="Custom legend title",
+            legend_title="Status",
             enable_legend=enable_legend,
         )
         ax.set_title(disease)
