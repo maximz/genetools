@@ -5,7 +5,6 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from typing import Union, List, Dict
-import textwrap
 
 from .palette import HueValueStyle, convert_palette_list_to_dict
 
@@ -13,6 +12,7 @@ from .palette import HueValueStyle, convert_palette_list_to_dict
 def savefig(fig, *args, **kwargs):
     """
     Save figure with tight bounding box.
+    Pulling the legend outside a figure expands figure size and requires calling savefig with bbox_inches='tight'.
     From https://github.com/mwaskom/seaborn/blob/master/seaborn/axisgrid.py#L33
     """
     kwargs = kwargs.copy()
@@ -25,20 +25,20 @@ def scatterplot(
     x_axis_key,
     y_axis_key,
     hue_key,
-    ax=None,
-    figsize=(8, 8),
-    enable_legend=True,
-    alpha=1.0,
     continuous_hue=False,
     continuous_cmap="viridis",
     discrete_palette: Union[
         Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]]
     ] = None,
+    ax=None,
+    figsize=(8, 8),
     marker_size=15,
-    legend_hues=None,
+    alpha=1.0,
     na_color="lightgray",
     marker=".",
     marker_edge_color="none",
+    enable_legend=True,
+    legend_hues=None,
     legend_title=None,
     sort_legend_hues=True,
     autoscale=True,
@@ -53,51 +53,76 @@ def scatterplot(
     remove_y_ticks=False,
     **kwargs,
 ):
-    """Simple umap scatter plot, with legend outside figure.
+    """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
-    Note, for discrete hues (continuous_hue=False):
+    For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
+
     Figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
     So you must use fig.savefig('filename', bbox_inches='tight').
     This is provided automatically by genetools.plots.savefig(fig, 'filename')
 
     If using with scanpy, to get umap data from adata.obsm into adata.obs, try:
-    > data = helpers.horizontal_concat(adata.obs, adata.obsm.to_df()[['X_umap1', 'X_umap2']])
+    > data = adata.obs.assign(umap_1=adata.obsm["X_umap"][:, 0], umap_2=adata.obsm["X_umap"][:, 1])
 
-    :param data: input data, e.g. anndata.obs
+    :param data: Input data, e.g. anndata.obs
     :type data: pandas.DataFrame
-    :param umap_1_key: column name with first dimension of UMAP
-    :type umap_1_key: string
-    :param umap_2_key: column name with second dimension of UMAP
-    :type umap_2_key: string
-    :param hue_key: column name with hue that will be used to color points
-    :type hue_key: string
-    :param continuous_hue: whether hue column takes continuous values and colorbar should be shown, defaults to False
+    :param x_axis_key: Column name to plot on X axis
+    :type x_axis_key: str
+    :param y_axis_key: Column name to plot on Y axis
+    :type y_axis_key: str
+    :param hue_key: Column name with hue groups that will be used to color points
+    :type hue_key: str
+    :param continuous_hue: Whether the hue column takes continuous or discrete/categorical values, defaults to False.
     :type continuous_hue: bool, optional
-    :param label_key: column name with optional cluster labels, defaults to None
-    :type label_key: string, optional
-    :param marker_size: marker size, defaults to 15
-    :type marker_size: int, optional
-    :param figsize: figure size, defaults to (8, 8)
+    :param continuous_cmap: Colormap to use for plotting continuous hue grouping variable, defaults to "viridis"
+    :type continuous_cmap: str, optional
+    :param discrete_palette: Palette of colors and/or HueValueStyle objects to use for plotting discrete/categorical hue groups, defaults to None. Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
+    :type discrete_palette: Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ], optional
+    :param ax: Existing matplotlib Axes to plot on, defaults to None
+    :type ax: matplotlib.Axes, optional
+    :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
-    :param discrete_palette: color palette for discrete hues, defaults to None
-    :type discrete_palette: matplotlib palette name, list of colors, or dict mapping hue values to colors, optional
-    :param continuous_cmap: colormap for continuous hues, defaults to None
-    :type continuous_cmap: matplotlib.colors.Colormap, optional
-    :param label_z_order: z-index for cluster labels, defaults to 10
+    :param marker_size: Default marker size, unless overriden by a HueValueStyle, defaults to 15
+    :type marker_size: int, optional
+    :param alpha: Default point transparency, unless overriden by a HueValueStyle, defaults to 1.0
+    :type alpha: float, optional
+    :param na_color: Fallback color to use for discrete hue categories that do not have an assigned style in discrete_palette, defaults to "lightgray"
+    :type na_color: str, optional
+    :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "."
+    :type marker: str, optional
+    :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none"
+    :type marker_edge_color: str, optional
+    :param enable_legend: Whether legend (or colorbar if continuous_hue) should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
+    :type enable_legend: bool, optional
+    :param legend_hues: Optionally override the list of hue values to include in legend, e.g. to add any hue values missing from the plotted subset of data; defaults to None
+    :type legend_hues: list, optional
+    :param legend_title: Specify a title for the legend. Defaults to None, in which case the hue_key is used.
+    :type legend_title: str, optional
+    :param sort_legend_hues: Enable sorting of legend hues, defaults to True
+    :type sort_legend_hues: bool, optional
+    :param autoscale: Enable automatic zoom in, defaults to True
+    :type autoscale: bool, optional
+    :param equal_aspect_ratio: Plot with equal aspect ratio, defaults to False
+    :type equal_aspect_ratio: bool, optional
+    :param plotnonfinite: For continuous hues, whether to plot points with inf or nan value, defaults to False
+    :type plotnonfinite: bool, optional
+    :param label_key: Optional column name specifying group text labels to superimpose on plot, defaults to None
+    :type label_key: str, optional
+    :param label_z_order: Z-index for superimposed group text labels, defaults to 100
     :type label_z_order: int, optional
-    :param label_color: color for cluster labels, defaults to 'k'
+    :param label_color: Color for superimposed group text labels, defaults to "k"
     :type label_color: str, optional
-    :param label_alpha: opacity for cluster labels, defaults to 0.5
+    :param label_alpha: Opacity for superimposed group text labels, defaults to 0.8
     :type label_alpha: float, optional
-    :param label_size: size of cluster labels, defaults to 20
+    :param label_size: Text size of superimposed group labels, defaults to 15
     :type label_size: int, optional
-    :return: matplotlib figure and axes
+    :param remove_x_ticks: Remove X axis tick marks and labels, defaults to False
+    :type remove_x_ticks: bool, optional
+    :param remove_y_ticks: Remove Y axis tick marks and labels, defaults to False
+    :type remove_y_ticks: bool, optional
+    :raises ValueError: Must specify correct number of colors if supplying a custom palette
+    :return: Matplotlib Figure and Axes
     :rtype: (matplotlib.Figure, matplotlib.Axes)
-
-
-    supply ax or figsize
-    legend_hues: override and add any missing colors to legend. optional
-    plotnonfinite: for continuous hues, plot points with inf or nan value.
     """
 
     if ax is None:
@@ -282,17 +307,6 @@ def scatterplot(
     return fig, ax
 
 
-# def _pull_legend_out_of_figure():
-#     """Pull legend outside figure to the right.
-#     Note: this expands figsize so you have to savefig with bbox_inches='tight'
-
-#     See:
-#         - https://stackoverflow.com/a/34579525/130164
-#         - https://matplotlib.org/tutorials/intermediate/legend_guide.html#legend-location
-#     """
-#     plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
-
-
 def stacked_bar_plot(
     data,
     index_key,
@@ -300,22 +314,26 @@ def stacked_bar_plot(
     value_key=None,
     ax=None,
     figsize=(8, 8),
-    vertical=False,
-    palette=None,
     normalize=True,
-    axis_label="Frequency",
-    hue_order=None,
-    legend_title=None,
+    vertical=False,
+    palette: Union[
+        Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]]
+    ] = None,
     na_color="lightgray",
+    hue_order=None,
+    axis_label="Frequency",
     enable_legend=True,
+    legend_title=None,
 ):
-    """Horizontal stacked bar chart.
-
-    Note, figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
-    So you must use fig.savefig('filename', bbox_inches='tight').
-    This is provided automatically by genetools.plots.savefig(fig, 'filename')
+    """Stacked bar chart.
+    The [index_key] groups form the bars, and the [hue_key] groups subdivide the bars.
+    [Value_key] determines the subdivision sizes, and is computed automatically if not provided.
 
     See https://observablehq.com/@d3/stacked-normalized-horizontal-bar for inspiration and colors.
+
+    Figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
+    So you must use fig.savefig('filename', bbox_inches='tight').
+    This is provided automatically by genetools.plots.savefig(fig, 'filename')
 
     :param data: Plot data containing at minimum the columns identified by [index_key], [hue_key], and [value_key].
     :type data: pandas.DataFrame
@@ -323,20 +341,31 @@ def stacked_bar_plot(
     :type index_key: str
     :param hue_key: Column name defining the horizontal bar categories.
     :type hue_key: str
-    :param value_key: Column name defining the bar sizes.
-    :type value_key: str
-    :param palette: Color palette, defaults to None (in which case default palette used)
-    :type palette: matplotlib palette name, list of colors, or dict mapping hue values to colors, optional
-    :param figsize: figure size, defaults to (8, 8)
+    :param value_key: Column name defining the bar sizes. If not supplied, this method will calculate group frequencies automatically
+    :type value_key: str, optional.
+    :param ax: Existing matplotlib Axes to plot on, defaults to None
+    :type ax: matplotlib.Axes, optional
+    :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
     :param normalize: Normalize each row's frequencies to sum to 1, defaults to True
     :type normalize: bool, optional
+    :param vertical: Plot stacked bars vertically, defaults to False (horizontal)
+    :type vertical: bool, optional
+    :param palette: Palette of colors and/or HueValuStyle objects to style the bars corresponding to each hue value, defaults to None (in which case default palette used). Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
+    :type palette: Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ], optional
+    :param na_color: Fallback color to use for hue values that do not have an assigned style in palette, defaults to "lightgray"
+    :type na_color: str, optional
+    :param hue_order: Optionally specify order of bar subdivisions. This order is applied from the beginning (bottom or left) to the end (top or right) of the bar. Defaults to None
+    :type hue_order: list, optional
+    :param axis_label: Label for the axis along which the frequency values are drawn, defaults to "Frequency"
+    :type axis_label: str, optional
+    :param enable_legend: Whether legend should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
+    :type enable_legend: bool, optional
+    :param legend_title: Specify a title for the legend. Defaults to None, in which case the hue_key is used.
+    :type legend_title: str, optional
     :raises ValueError: Must specify correct number of colors if supplying a custom palette
-    :return: matplotlib figure and axes
+    :return: Matplotlib Figure and Axes
     :rtype: (matplotlib.Figure, matplotlib.Axes)
-
-    must supply ax or figsize
-    hue_order is applied from beginning (bottom or left) to the end (top or right) of the bar
     """
 
     if value_key is None:

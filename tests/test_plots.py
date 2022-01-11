@@ -36,9 +36,9 @@ def test_scatterplot_discrete(adata):
         x_axis_key="umap_1",
         y_axis_key="umap_2",
         hue_key="louvain",
-        label_key="louvain",
         alpha=0.8,
         legend_title="Cluster",
+        label_key="louvain",
         remove_x_ticks=True,
         remove_y_ticks=True,
     )
@@ -48,15 +48,19 @@ def test_scatterplot_discrete(adata):
 @pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
 def test_scatterplot_continuous(adata):
     """Test scatterplot with continouous hue."""
+    # also test supplying our own axes
+    fig, ax = plt.subplots()
     fig, _ = plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
         hue_key="CST3",
         continuous_hue=True,
-        label_key="louvain",
+        ax=ax,
         alpha=0.8,
         legend_title="Cluster",
+        equal_aspect_ratio=True,
+        label_key="louvain",
     )
     return fig
 
@@ -121,12 +125,12 @@ def test_stacked_bar_plot_autocompute_frequencies():
             grp,
             index_key="cluster",
             hue_key="expanded",
-            normalize=False,
-            axis_label="Number of cells",
-            vertical=True,
-            hue_order=["Not expanded", "Expanded"],
-            palette=palette,
             ax=ax,
+            normalize=False,
+            vertical=True,
+            palette=palette,
+            hue_order=["Not expanded", "Expanded"],
+            axis_label="Number of cells",
             legend_title="Status",
             enable_legend=enable_legend,
         )
