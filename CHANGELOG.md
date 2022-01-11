@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 (2022-01-10)
+
+* Improve scatter plots and stacked bar plots.
+* Introduce `HueValueStyle` for granular styling of each hue.
+
 ## 0.4.0 (2020-07-22)
 
 * Centered log ratio (CLR) normalization for Cite-seq protein data.
