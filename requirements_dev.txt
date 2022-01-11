@@ -22,6 +22,6 @@ scikit-learn>=1.0.1
 scipy>=1.4.1
 seaborn>=0.11.2
 sphinx>=4
-twine==1.14.0
+twine==3.7.1
 watchdog==0.9.0
 wheel==0.33.6
