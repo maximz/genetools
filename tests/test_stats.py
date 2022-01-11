@@ -147,7 +147,7 @@ def test_intersect_marker_genes():
         "Cluster 2": "CD8 T cells",
         "Cluster 3": "CD8 T cells-1",  # duplicates renamed
         "Cluster 4": "CD8 T cells-2",  # duplicates renamed
-        "Cluster 5": "B cells (maybe)",  # low confidence match
+        "Cluster 5": "CD4 T cells (maybe)",  # low confidence match
     }
     expected_df = pd.DataFrame(
         {
@@ -163,7 +163,7 @@ def test_intersect_marker_genes():
                 "CD8 T cells",
                 "CD8 T cells-1",
                 "CD8 T cells-2",
-                "B cells (maybe)",
+                "CD4 T cells (maybe)",
             ],
             "low_confidence_call": [False, False, False, False, True],
             "highest_score": [2 / 3, 2 / 3, 2 / 3, 2 / 3, 0],

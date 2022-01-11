@@ -19,14 +19,13 @@ test_requirements = ["pytest>=3", "scanpy", "python-igraph", "louvain", "pytest-
 setup(
     author="Maxim Zaslavsky",
     author_email="maxim@maximz.com",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
@@ -43,7 +42,7 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/maximz/genetools",
-    version="0.4.0",
+    version="0.5.0",
     zip_safe=False,
     extras_require={"scanpy": ["scanpy"]},
 )

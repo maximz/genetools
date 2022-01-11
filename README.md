@@ -1,7 +1,7 @@
 # genetools: single-cell analysis recipes (work in progress)
 
 [![](https://img.shields.io/pypi/v/genetools.svg)](https://pypi.python.org/pypi/genetools)
-[![](https://img.shields.io/travis/maximz/genetools.svg)](https://travis-ci.com/maximz/genetools)
+[![CI](https://github.com/maximz/genetools/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/maximz/genetools/actions/workflows/ci.yaml)
 [![](https://img.shields.io/badge/docs-here-blue.svg)](https://genetools.maximz.com)
 [![](https://img.shields.io/github/stars/maximz/genetools?style=social)](https://github.com/maximz/genetools)
 [![codecov](https://codecov.io/gh/maximz/genetools/branch/master/graph/badge.svg)](https://codecov.io/gh/maximz/genetools)
@@ -12,12 +12,25 @@
 <tr>
 <td>
 
-[![](tests/baseline/test_umap_scatter_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_scatterplot_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
 
 </td>
 <td>
 
-[![](tests/baseline/test_horizontal_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+[![](tests/baseline/test_scatterplot_continuous.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+
+</td>
+<td>
+
+[![](tests/baseline/test_stacked_bar_plot_autocompute_frequencies.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
 
 </td>
 </tr>
@@ -47,24 +60,40 @@ To use genetools in a project, add `import genetools`. Review the [documentation
 
 Setup:
 
-```
+```bash
 git clone git://github.com/maximz/genetools
 cd genetools
+pip install --upgrade pip wheel
 pip install -r requirements_dev.txt
 pre-commit install
 ```
 
 Common commands:
 
-```
+```bash
 # lint
 make lint
 
-# run tests
+# one-time: generate test anndata, and commit so we have reproducible tests in CI
+rm -r data
+make regen-test-data
+
+# run tests locally
+# this is done in a debian-based docker image to ensure image style matches what Github Actions CI will produce
+make build-docker-test-image # whenever requirements_dev.txt change
 make test
 
-# generate baseline figures (run from root directory)
-make regen-tests
+# generate baseline figures (also happens in docker)
+make regen-snapshot-figures
+
+# regenerate test data, and baseline figures (also happens in docker)
+make regen-test-data
+
+# run tests locally without docker, therefore omitting the snapshot tests
+make test-without-figures
+
+# docs
+make docs
 
 # bump version before submitting a PR against master (all master commits are deployed)
 bump2version patch # possible: major / minor / patch
@@ -73,5 +102,6 @@ bump2version patch # possible: major / minor / patch
 ```
 
 CI:
-- Main: https://travis-ci.com/github/maximz/genetools
-- Docs: https://app.netlify.com/sites/genetools
+
+- Main: Github Actions
+- Docs: [https://app.netlify.com/sites/genetools](https://app.netlify.com/sites/genetools)

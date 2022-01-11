@@ -1,12 +1,23 @@
 #!/usr/bin/env python
 
-"""Tests for `genetools` package."""
+"""Tests for `genetools` plots.
+
+Keep in mind when writing plotting tests:
+- Use `@pytest.mark.mpl_image_compare` decorator to automatically do snapshot testing. See README.md for how to regenerate snapshots.
+- `plt.tight_layout()` seems to produce different figure dimensions across different platforms.
+    - To generate figures in a consistent way with Github Actions CI, we now run tests locally in a Debian-based Docker image as well.
+- Some figures seem not to export right unless you save with tight bounding box (specifically legends outside figure are cut off):
+    - `@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})`
+"""
 
 import pytest
 import numpy as np
 import pandas as pd
 import random
 import matplotlib
+import matplotlib.pyplot as plt
+
+from genetools.palette import HueValueStyle
 
 matplotlib.use("Agg")
 
@@ -17,105 +28,45 @@ np.random.seed(random_seed)
 random.seed(random_seed)
 
 
-@pytest.fixture
-def adata_obs():
-    """Fixture that returns an anndata object.
-    This downloads 5.9 MB of data upon the first call of the function and stores it in ./data/pbmc3k_raw.h5ad.
-    Then processed version cached at ./data/pbmc3k.h5ad (not versioned) and .data/pbmc3k.obs.csv (versioned for reference plot consistency).
-
-    To regenerate: rm ./data/pbmc3k.obs.csv
-    """
-    import scanpy as sc
-    import pandas as pd
-    import os
-
-    # cache output of this fixture so we can make baseline figures
-    if os.path.exists("data/pbmc3k.obs.csv"):
-        return pd.read_csv("data/pbmc3k.obs.csv", index_col=0)
-
-    # Following https://scanpy-tutorials.readthedocs.io/en/latest/pbmc3k.html
-    adata = sc.datasets.pbmc3k()
-
-    sc.pp.filter_cells(adata, min_genes=200)
-    sc.pp.filter_genes(adata, min_cells=3)
-
-    mito_genes = adata.var_names.str.startswith("MT-")
-    adata.obs["percent_mito"] = np.sum(adata[:, mito_genes].X, axis=1) / np.sum(
-        adata.X, axis=1
-    )
-    adata.obs["n_counts"] = adata.X.sum(axis=1).A1
-    adata = adata[adata.obs.n_genes < 2500, :]
-    adata = adata[adata.obs.percent_mito < 0.05, :]
-
-    sc.pp.normalize_total(adata, target_sum=1e4)
-    sc.pp.log1p(adata)
-    adata.raw = adata
-
-    sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
-    adata = adata[:, adata.var.highly_variable]
-    sc.pp.regress_out(adata, ["n_counts", "percent_mito"])
-    sc.pp.scale(adata, max_value=10)
-
-    sc.tl.pca(adata, svd_solver="arpack")
-    sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
-    sc.tl.umap(adata)
-    sc.tl.louvain(adata)
-
-    # these will be out of order
-    new_cluster_names = [
-        "CD4 T",
-        "CD14 Monocytes",
-        "B",
-        "CD8 T",
-        "NK",
-        "FCGR3A Monocytes",
-        "Dendritic",
-        "Megakaryocytes",
-    ]
-    adata.rename_categories("louvain", new_cluster_names)
-
-    # Pull umap into obs
-    adata.obs["umap_1"] = adata.obsm["X_umap"][:, 0]
-    adata.obs["umap_2"] = adata.obsm["X_umap"][:, 1]
-
-    # Pull a gene value into obs
-    adata.obs["CST3"] = adata[:, "CST3"].X
-
-    adata.write("data/pbmc3k.h5ad", compression="gzip")
-    adata.obs.to_csv("data/pbmc3k.obs.csv")
-
-    return adata
-
-
 @pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
-def test_umap_scatter_discrete(adata_obs):
-    """Test umap_scatter with discrete hue."""
-    fig, _ = plots.umap_scatter(
-        data=adata_obs,
-        umap_1_key="umap_1",
-        umap_2_key="umap_2",
+def test_scatterplot_discrete(adata):
+    """Test scatterplot with discrete hue."""
+    fig, _ = plots.scatterplot(
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
         hue_key="louvain",
+        alpha=0.8,
+        legend_title="Cluster",
         label_key="louvain",
+        remove_x_ticks=True,
+        remove_y_ticks=True,
     )
     return fig
 
 
-@pytest.mark.mpl_image_compare
-def test_umap_scatter_continuous(adata_obs):
-    """Test umap_scatter with continouous hue."""
-    fig, _ = plots.umap_scatter(
-        data=adata_obs,
-        umap_1_key="umap_1",
-        umap_2_key="umap_2",
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_scatterplot_continuous(adata):
+    """Test scatterplot with continouous hue."""
+    # also test supplying our own axes
+    fig, ax = plt.subplots()
+    fig, _ = plots.scatterplot(
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
         hue_key="CST3",
         continuous_hue=True,
+        ax=ax,
+        alpha=0.8,
+        legend_title="Cluster",
+        equal_aspect_ratio=True,
         label_key="louvain",
     )
     return fig
 
 
 @pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
-def test_horizontal_stacked_bar_plot():
+def test_stacked_bar_plot():
     df = pd.DataFrame(
         {
             "cluster": [
@@ -130,11 +81,59 @@ def test_horizontal_stacked_bar_plot():
             "frequency": [0.25, 0.75, 15, 5, 250, 750],
         }
     )
-    fig, _ = plots.horizontal_stacked_bar_plot(
+    fig, _ = plots.stacked_bar_plot(
         df,
         index_key="cluster",
         hue_key="cell_type",
         value_key="frequency",
         normalize=True,
     )
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_stacked_bar_plot_autocompute_frequencies():
+    df = pd.DataFrame(
+        [{"disease": "Covid", "cluster": 1, "expanded": "Not expanded"}] * 10
+        + [{"disease": "Covid", "cluster": 1, "expanded": "Expanded"}] * 20
+        + [{"disease": "Covid", "cluster": 2, "expanded": "Not expanded"}] * 50
+        + [{"disease": "Covid", "cluster": 2, "expanded": "Expanded"}] * 5
+        + [{"disease": "Covid", "cluster": 3, "expanded": "Not expanded"}] * 15
+        + [{"disease": "Covid", "cluster": 3, "expanded": "Expanded"}] * 15
+        ###
+        + [{"disease": "Healthy", "cluster": 1, "expanded": "Not expanded"}] * 5
+        + [{"disease": "Healthy", "cluster": 1, "expanded": "Expanded"}] * 45
+        + [{"disease": "Healthy", "cluster": 2, "expanded": "Not expanded"}] * 15
+        + [{"disease": "Healthy", "cluster": 2, "expanded": "Expanded"}] * 17
+        + [{"disease": "Healthy", "cluster": 3, "expanded": "Not expanded"}] * 8
+        + [{"disease": "Healthy", "cluster": 3, "expanded": "Expanded"}] * 3
+    )
+    # also test unnormalized, vertical, with specific hue_order and palette and legend title
+    palette = {
+        "Not expanded": HueValueStyle(color="#0ec7ff"),
+        "Expanded": HueValueStyle(color="#ff0ec3", hatch="//"),
+    }
+
+    # plot per disease using subplots with shared X axis
+    fig, axarr = plt.subplots(
+        figsize=(4, 8), nrows=df["disease"].nunique(), sharex=True, sharey=False
+    )
+    for ix, (ax, (disease, grp)) in enumerate(zip(axarr, df.groupby("disease"))):
+        # only plot legend for top-most axis
+        enable_legend = ix == 0
+        plots.stacked_bar_plot(
+            grp,
+            index_key="cluster",
+            hue_key="expanded",
+            ax=ax,
+            normalize=False,
+            vertical=True,
+            palette=palette,
+            hue_order=["Not expanded", "Expanded"],
+            axis_label="Number of cells",
+            legend_title="Status",
+            enable_legend=enable_legend,
+        )
+        ax.set_title(disease)
+
     return fig

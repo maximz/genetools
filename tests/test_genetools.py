@@ -45,15 +45,12 @@ def test_version_number_not_yet_on_pypi():
 
     PyPI API docs:
     - https://warehouse.pypa.io/api-reference/json/
-
-    Environment variable docs:
-    - https://unhashable.com/getting-the-current-branch-name-during-a-pull-request-in-travis-ci/
-    - https://docs.travis-ci.com/user/environment-variables
     """
-    is_pr = os.environ.get("TRAVIS_PULL_REQUEST", "false") != "false"
-    targets_master = os.environ.get("TRAVIS_BRANCH", "") == "master"
+    is_pr_targeting_master = (
+        os.environ.get("IS_PR_TARGETING_MASTER", "false") != "false"
+    )
 
-    if is_pr and targets_master:
+    if is_pr_targeting_master:
         # if the release does not exist yet, this version-specific lookup should 404
         assert (
             requests.get(

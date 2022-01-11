@@ -1,13 +1,12 @@
 """Pandas/Numpy common recipes."""
 
 import os
-import scipy
 import numpy as np
 import pandas as pd
 
 
 def rename_duplicates(series, delim="-"):
-    """Rename duplicate values to be unique. ['a', 'a'] will become ['a', 'a-1'], for example.
+    """Rename duplicate values to be unique. ``['a', 'a']`` will become ``['a', 'a-1']``, for example.
 
     :param series: series with values to rename
     :type series: pandas.Series
@@ -30,14 +29,16 @@ def rename_duplicates(series, delim="-"):
 
 
 def merge_into_left(left, right, **kwargs):
-    """Defensively merge [right] series or dataframe into [left] by index, preserving [left]'s index exactly. [right] data will be reordered to match [left] index.
+    """Defensively merge ``right`` series or dataframe into ``left`` by index,
+    preserving ``left``'s index exactly.
+    ``right`` data will be reordered to match ``left`` index.
 
     :param left: left data whose index will be preserved
     :type left: pandas.DataFrame or pandas.Series
     :param right: right data which will be reordered based on left index.
     :type right: pandas.DataFrame or pandas.Series
     :param \**kwargs: passed to pandas.merge
-    :return: left-merged DataFrame with [left]'s index
+    :return: left-merged DataFrame with ``left``'s index
     :rtype: pandas.DataFrame
     """
     # defensively cast to dataframe
@@ -61,7 +62,7 @@ def merge_into_left(left, right, **kwargs):
 
 
 def horizontal_concat(df_left, df_right):
-    """Concatenate df_right horizontally to df_left, with no checks for whether the indexes match, but confirming final shape.
+    """Concatenate ``df_right`` horizontally to ``df_left``, with no checks for whether the indexes match, but confirming final shape.
 
     :param df_left: Left data
     :type df_left: pandas.DataFrame or pandas.Series
@@ -112,7 +113,13 @@ def barcode_split(
     """Split single cell barcodes such as ATGC-1 into a barcode column with value "ATGC" and a library ID column with value 1.
 
     Recommended usage with scanpy:
-    adata.obs = horizontal_concat(adata.obs, barcode_split(adata.obs_names))
+
+    .. code-block:: python
+
+        adata.obs = genetools.helpers.horizontal_concat(
+            adata.obs,
+            genetools.helpers.barcode_split(adata.obs_names)
+        )
 
     :param obs_names: Cell barcodes with a library ID suffix.
     :type obs_names: pandas.Series or pandas.Index
@@ -156,10 +163,10 @@ def make_slurm_command(
     """Generate slurm sbatch command. Should be pipe-able straight to bash.
 
     Automatic log filenames will take the format:
-        - `{{ log_path }}/{{ job_group_name (optional) }}/{{ job_name }}.out` for stdout
-        - `{{ log_path }}/{{ job_group_name (optional) }}/{{ job_name }}.err` for stderr
+        - ``{{ log_path }}/{{ job_group_name (optional) }}/{{ job_name }}.out`` for stdout
+        - ``{{ log_path }}/{{ job_group_name (optional) }}/{{ job_name }}.err`` for stderr
 
-    You can override automatic log filenames by manually supplying "output" and "error" values in the `options` dict.
+    You can override automatic log filenames by manually supplying "output" and "error" values in the ``options`` dict.
 
     :param script: path to an executable script, or inline script (if wrap_script is True)
     :type script: str

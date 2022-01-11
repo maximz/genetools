@@ -1,5 +1,5 @@
 genetools documentation table of contents
-======================================
+=========================================
 
 .. toctree::
    :maxdepth: 3
