@@ -12,9 +12,9 @@ from .palette import HueValueStyle, convert_palette_list_to_dict
 def savefig(fig, *args, **kwargs):
     """
     Save figure with tight bounding box.
-    Pulling the legend outside a figure expands figure size and requires calling savefig with bbox_inches='tight'.
-    From https://github.com/mwaskom/seaborn/blob/master/seaborn/axisgrid.py#L33
+    Pulling the legend outside a figure expands figure size and requires calling savefig with ``bbox_inches='tight'``.
     """
+    # From https://github.com/mwaskom/seaborn/blob/master/seaborn/axisgrid.py#L33
     kwargs = kwargs.copy()
     kwargs.setdefault("bbox_inches", "tight")
     fig.savefig(*args, **kwargs)
@@ -58,11 +58,14 @@ def scatterplot(
     For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
 
     Figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
-    So you must use fig.savefig('filename', bbox_inches='tight').
-    This is provided automatically by genetools.plots.savefig(fig, 'filename')
+    So you must use ``fig.savefig('filename', bbox_inches='tight')``.
+    This is provided automatically by ``genetools.plots.savefig(fig, 'filename')``.
 
     If using with scanpy, to get umap data from adata.obsm into adata.obs, try:
-    > data = adata.obs.assign(umap_1=adata.obsm["X_umap"][:, 0], umap_2=adata.obsm["X_umap"][:, 1])
+
+    .. code-block:: python
+
+        data = adata.obs.assign(umap_1=adata.obsm["X_umap"][:, 0], umap_2=adata.obsm["X_umap"][:, 1])
 
     :param data: Input data, e.g. anndata.obs
     :type data: pandas.DataFrame
@@ -77,7 +80,7 @@ def scatterplot(
     :param continuous_cmap: Colormap to use for plotting continuous hue grouping variable, defaults to "viridis"
     :type continuous_cmap: str, optional
     :param discrete_palette: Palette of colors and/or HueValueStyle objects to use for plotting discrete/categorical hue groups, defaults to None. Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
-    :type discrete_palette: Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ], optional
+    :type discrete_palette: ``Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ]``, optional
     :param ax: Existing matplotlib Axes to plot on, defaults to None
     :type ax: matplotlib.Axes, optional
     :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
@@ -326,16 +329,17 @@ def stacked_bar_plot(
     legend_title=None,
 ):
     """Stacked bar chart.
-    The [index_key] groups form the bars, and the [hue_key] groups subdivide the bars.
-    [Value_key] determines the subdivision sizes, and is computed automatically if not provided.
+
+    The ``index_key`` groups form the bars, and the ``hue_key`` groups subdivide the bars.
+    The ``value_key`` determines the subdivision sizes, and is computed automatically if not provided.
 
     See https://observablehq.com/@d3/stacked-normalized-horizontal-bar for inspiration and colors.
 
     Figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
-    So you must use fig.savefig('filename', bbox_inches='tight').
-    This is provided automatically by genetools.plots.savefig(fig, 'filename')
+    So you must use ``fig.savefig('filename', bbox_inches='tight')``.
+    This is provided automatically by ``genetools.plots.savefig(fig, 'filename')``.
 
-    :param data: Plot data containing at minimum the columns identified by [index_key], [hue_key], and [value_key].
+    :param data: Plot data containing at minimum the columns identified by ``index_key``, ``hue_key``, and optionally ``value_key``.
     :type data: pandas.DataFrame
     :param index_key: Column name defining the rows.
     :type index_key: str
@@ -352,7 +356,7 @@ def stacked_bar_plot(
     :param vertical: Plot stacked bars vertically, defaults to False (horizontal)
     :type vertical: bool, optional
     :param palette: Palette of colors and/or HueValuStyle objects to style the bars corresponding to each hue value, defaults to None (in which case default palette used). Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
-    :type palette: Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ], optional
+    :type palette: ``Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ]``, optional
     :param na_color: Fallback color to use for hue values that do not have an assigned style in palette, defaults to "lightgray"
     :type na_color: str, optional
     :param hue_order: Optionally specify order of bar subdivisions. This order is applied from the beginning (bottom or left) to the end (top or right) of the bar. Defaults to None

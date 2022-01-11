@@ -12,12 +12,25 @@
 <tr>
 <td>
 
-[![](tests/baseline/test_umap_scatter_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_scatterplot_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
 
 </td>
 <td>
 
-[![](tests/baseline/test_horizontal_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+[![](tests/baseline/test_scatterplot_continuous.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+
+</td>
+<td>
+
+[![](tests/baseline/test_stacked_bar_plot_autocompute_frequencies.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
 
 </td>
 </tr>
@@ -47,16 +60,17 @@ To use genetools in a project, add `import genetools`. Review the [documentation
 
 Setup:
 
-```
+```bash
 git clone git://github.com/maximz/genetools
 cd genetools
+pip install --upgrade pip wheel
 pip install -r requirements_dev.txt
 pre-commit install
 ```
 
 Common commands:
 
-```
+```bash
 # lint
 make lint
 
@@ -78,6 +92,9 @@ make regen-test-data
 # run tests locally without docker, therefore omitting the snapshot tests
 make test-without-figures
 
+# docs
+make docs
+
 # bump version before submitting a PR against master (all master commits are deployed)
 bump2version patch # possible: major / minor / patch
 
@@ -85,5 +102,6 @@ bump2version patch # possible: major / minor / patch
 ```
 
 CI:
+
 - Main: Github Actions
 - Docs: [https://app.netlify.com/sites/genetools](https://app.netlify.com/sites/genetools)

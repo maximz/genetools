@@ -6,6 +6,7 @@ import matplotlib as mpl
 def convert_palette_list_to_dict(palette, hue_names, sort_hues=True):
     """
     If palette is a list, convert it to a dict, assigning a color to each value in hue_names (with sort enabled by default).
+
     If palette is already a dict, pass it through with no changes.
     """
     if isinstance(palette, collections.abc.Mapping):
@@ -34,7 +35,7 @@ class HueValueStyle:
     * Rectangle/barplot color and hatch pattern.
     * Size scale factor for legend entries.
 
-    For face and edge colors, None is the default value; to disable them, set to string 'none'.
+    For face and edge colors, ``None`` is the default value; to disable them, set to string ``'none'``.
     """
 
     color: str
@@ -50,7 +51,7 @@ class HueValueStyle:
 
     @staticmethod
     def huestyles_to_colors_dict(d: dict) -> dict:
-        """Cast any HueValueStyle values in dict to be color strings"""
+        """Cast any HueValueStyle values in dict to be color strings."""
         return {k: v.color if isinstance(v, HueValueStyle) else v for k, v in d.items()}
 
     @classmethod
