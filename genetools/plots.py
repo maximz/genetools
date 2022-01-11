@@ -213,7 +213,7 @@ def scatterplot(
 
             colorbar = fig.colorbar(scattered_object, cax=colorbar_ax)
             if legend_title is not None:
-                colorbar_ax.set_xlabel(legend_title)
+                colorbar_ax.set_title(legend_title)
 
         else:
             # Create legend, and add any missing colors
