@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -506,8 +507,24 @@ def stacked_bar_plot(
     return fig, ax
 
 
-def wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20):
-    """Add text wrapping to tick labels on x and/or y axes on any plot."""
+def wrap_tick_labels(
+    ax: matplotlib.Axes, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20
+) -> matplotlib.Axes:
+    """Add text wrapping to tick labels on x and/or y axes on any plot.
+
+    May override existing line breaks in tick labels.
+
+    :param ax: existing plot with tick labels to be wrapped
+    :type ax: matplotlib.Axes
+    :param wrap_x_axis: whether to wrap x-axis tick labels, defaults to True
+    :type wrap_x_axis: bool, optional
+    :param wrap_y_axis: whether to wrap y-axis tick labels, defaults to True
+    :type wrap_y_axis: bool, optional
+    :param wrap_amount: length of each line of text, defaults to 20
+    :type wrap_amount: int, optional
+    :return: plot with modified tick labels
+    :rtype: matplotlib.Axes
+    """
 
     # At this point, ax.get_xticklabels() may return empty tick labels and emit UserWarning: FixedFormatter should only be used together with FixedLocator
     # It seems this happens for numerical axes specifically.
@@ -531,6 +548,42 @@ def wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20):
         ax.set_yticklabels(wrap_labels(ax.get_yticklabels()))
 
     return ax
+
+
+def add_sample_size_to_labels(labels: list, data: pd.DataFrame, hue_key: str) -> list:
+    """Add sample size to tick labels on any plot with categorical groups.
+
+    Sample size for each label is extracted from the ``hue_key`` column of dataframe ``data``.
+
+    Pairs well with ``genetools.plots.wrap_tick_labels(ax)``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        ax.set_xticklabels(
+            genetools.plots.add_sample_size_to_labels(
+                ax.get_xticklabels(),
+                df,
+                "Group"
+            )
+        )
+
+    :param labels: list of tick labels corresponding to groups in ``data[hue_key]``
+    :type labels: list
+    :param data: dataset with categorical groups
+    :type data: pd.DataFrame
+    :param hue_key: column name specifying categorical groups in dataset ``data``
+    :type hue_key: str
+    :return: modified tick labels with group sample sizes attached
+    :rtype: list
+    """
+
+    def _make_label(hue_value):
+        sample_size = data[data[hue_key] == hue_value].shape[0]
+        return f"{hue_value}\n($n={sample_size}$)"
+
+    return [_make_label(label.get_text()) for label in labels]
 
 
 ####

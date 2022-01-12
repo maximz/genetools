@@ -16,13 +16,13 @@ import pandas as pd
 import random
 import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 import warnings
 
+from genetools import plots
 from genetools.palette import HueValueStyle
 
 matplotlib.use("Agg")
-
-from genetools import plots
 
 random_seed = 12345
 np.random.seed(random_seed)
@@ -164,4 +164,67 @@ def test_wrap_axis_labels():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10)
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_add_sample_size_to_labels():
+    # make more sick patients and have their distances be more dispersed
+    n_healthy = 10
+    n_sick = 20
+    df = pd.DataFrame(
+        {
+            "distance": np.hstack(
+                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
+            ),
+            "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
+        }
+    )
+    df["distance"] += 10
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df, x="distance", y="disease type", ax=ax)
+
+    # Add sample size to labels
+    ax.set_yticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_yticklabels(), data=df, hue_key="disease type"
+        )
+    )
+    assert ax.get_yticklabels()[0].get_text() == "Healthy\n($n=10$)"
+
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_wrap_labels_overrides_any_linebreaks_in_labels():
+    # make more sick patients and have their distances be more dispersed
+    n_healthy = 10
+    n_sick = 20
+    df = pd.DataFrame(
+        {
+            "distance": np.hstack(
+                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
+            ),
+            "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
+        }
+    )
+    df["distance"] += 10
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df, x="distance", y="disease type", ax=ax)
+
+    # Add sample size to labels
+    ax.set_yticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_yticklabels(), data=df, hue_key="disease type"
+        )
+    )
+
+    # Wrap y-axis text labels
+    # The labels will have linebreaks already from previous step,
+    # but wrap_tick_labels will remove them as needed to follow its wrap_amount parameter
+    plots.wrap_tick_labels(ax, wrap_x_axis=False, wrap_y_axis=True)
+    assert (
+        ax.get_yticklabels()[0].get_text() == "Healthy ($n=10$)"
+    )  # no more line break
+
     return fig
