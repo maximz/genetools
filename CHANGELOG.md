@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+* Two new functions to customize tick labels on any existing plot:
+    * `wrap_tick_labels`: add text wrapping
+    * `add_sample_size_to_labels`: add group sample sizes with a `(n=N)` suffix
+
+
+
 ## 0.5.0 (2022-01-10)
 
 * Improve scatter plots and stacked bar plots.
