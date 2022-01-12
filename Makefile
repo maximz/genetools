@@ -61,7 +61,7 @@ build-docker-test-image: requirements_dev.txt
 
 ## run tests locally using the docker image that matches Github Actions platform
 test: build-docker-test-image
-	docker run --rm -it -v $$(pwd):/src genetools-test pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results -vv;
+	docker run --rm -it -v $$(pwd):/src genetools-test pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results --basetemp=tests/results -vv;
 
 # run tests locally, without docker, therefore omitting the snapshot tests
 test-without-figures:
