@@ -159,11 +159,19 @@ def test_wrap_axis_labels():
         vertical=True,
     )
 
+    # it's tempting to do a before-vs-after comparison of label text directly,
+    # but tick labels are not actually available until the plot is drawn (see the comments in wrap_tick_labels()),
+    # and forcing plot drawing for the test would interfere with actually testing that wrap_tick_labels does that on its own.
+
     # Wrap axis text labels
     # Confirm there is no UserWarning: FixedFormatter should only be used together with FixedLocator
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10)
+
+    assert (
+        ax.get_xticklabels()[0].get_text() != "very long cluster name 1"
+    ), "x tick labels should be wrapped"
     return fig
 
 
@@ -210,21 +218,32 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels():
     )
     df["distance"] += 10
     fig, ax = plt.subplots()
-    sns.boxplot(data=df, x="distance", y="disease type", ax=ax)
+    sns.boxplot(data=df, y="distance", x="disease type", ax=ax)
 
     # Add sample size to labels
-    ax.set_yticklabels(
+    ax.set_xticklabels(
         plots.add_sample_size_to_labels(
-            labels=ax.get_yticklabels(), data=df, hue_key="disease type"
+            labels=ax.get_xticklabels(), data=df, hue_key="disease type"
         )
     )
 
     # Wrap y-axis text labels
     # The labels will have linebreaks already from previous step,
     # but wrap_tick_labels will remove them as needed to follow its wrap_amount parameter
-    plots.wrap_tick_labels(ax, wrap_x_axis=False, wrap_y_axis=True)
+    assert ax.get_xticklabels()[0].get_text() == "Healthy\n($n=10$)"  # line break
+    plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
     assert (
-        ax.get_yticklabels()[0].get_text() == "Healthy ($n=10$)"
+        ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
+    )  # no more line break
+
+    # Also confirm that rerunning has no further effect
+    plots.wrap_tick_labels(ax, wrap_x_axis=False, wrap_y_axis=False)
+    assert (
+        ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
+    )  # no more line break
+    plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
+    assert (
+        ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
     )  # no more line break
 
     return fig
