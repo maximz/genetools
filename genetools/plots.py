@@ -32,7 +32,7 @@ def scatterplot(
     discrete_palette: Union[
         Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]]
     ] = None,
-    ax=None,
+    ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
     marker_size=15,
     alpha=1.0,
@@ -54,7 +54,7 @@ def scatterplot(
     remove_x_ticks=False,
     remove_y_ticks=False,
     **kwargs,
-):
+) -> (matplotlib.figure.Figure, matplotlib.axes.Axes):
     """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
     For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
@@ -84,7 +84,7 @@ def scatterplot(
     :param discrete_palette: Palette of colors and/or HueValueStyle objects to use for plotting discrete/categorical hue groups, defaults to None. Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
     :type discrete_palette: ``Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ]``, optional
     :param ax: Existing matplotlib Axes to plot on, defaults to None
-    :type ax: matplotlib.Axes, optional
+    :type ax: matplotlib.axes.Axes, optional
     :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
     :param marker_size: Default marker size, unless overriden by a HueValueStyle, defaults to 15
@@ -127,7 +127,7 @@ def scatterplot(
     :type remove_y_ticks: bool, optional
     :raises ValueError: Must specify correct number of colors if supplying a custom palette
     :return: Matplotlib Figure and Axes
-    :rtype: (matplotlib.Figure, matplotlib.Axes)
+    :rtype: (matplotlib.figure.Figure, matplotlib.axes.Axes)
     """
 
     if ax is None:
@@ -317,7 +317,7 @@ def stacked_bar_plot(
     index_key,
     hue_key,
     value_key=None,
-    ax=None,
+    ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
     normalize=True,
     vertical=False,
@@ -329,7 +329,7 @@ def stacked_bar_plot(
     axis_label="Frequency",
     enable_legend=True,
     legend_title=None,
-):
+) -> (matplotlib.figure.Figure, matplotlib.axes.Axes):
     """Stacked bar chart.
 
     The ``index_key`` groups form the bars, and the ``hue_key`` groups subdivide the bars.
@@ -350,7 +350,7 @@ def stacked_bar_plot(
     :param value_key: Column name defining the bar sizes. If not supplied, this method will calculate group frequencies automatically
     :type value_key: str, optional.
     :param ax: Existing matplotlib Axes to plot on, defaults to None
-    :type ax: matplotlib.Axes, optional
+    :type ax: matplotlib.axes.Axes, optional
     :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
     :param normalize: Normalize each row's frequencies to sum to 1, defaults to True
@@ -371,7 +371,7 @@ def stacked_bar_plot(
     :type legend_title: str, optional
     :raises ValueError: Must specify correct number of colors if supplying a custom palette
     :return: Matplotlib Figure and Axes
-    :rtype: (matplotlib.Figure, matplotlib.Axes)
+    :rtype: (matplotlib.figure.Figure, matplotlib.axes.Axes)
     """
 
     if value_key is None:
@@ -508,14 +508,14 @@ def stacked_bar_plot(
 
 
 def wrap_tick_labels(
-    ax: matplotlib.Axes, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20
-) -> matplotlib.Axes:
+    ax: matplotlib.axes.Axes, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20
+) -> matplotlib.axes.Axes:
     """Add text wrapping to tick labels on x and/or y axes on any plot.
 
     May override existing line breaks in tick labels.
 
     :param ax: existing plot with tick labels to be wrapped
-    :type ax: matplotlib.Axes
+    :type ax: matplotlib.axes.Axes
     :param wrap_x_axis: whether to wrap x-axis tick labels, defaults to True
     :type wrap_x_axis: bool, optional
     :param wrap_y_axis: whether to wrap y-axis tick labels, defaults to True
@@ -523,7 +523,7 @@ def wrap_tick_labels(
     :param wrap_amount: length of each line of text, defaults to 20
     :type wrap_amount: int, optional
     :return: plot with modified tick labels
-    :rtype: matplotlib.Axes
+    :rtype: matplotlib.axes.Axes
     """
 
     # At this point, ax.get_xticklabels() may return empty tick labels and emit UserWarning: FixedFormatter should only be used together with FixedLocator
