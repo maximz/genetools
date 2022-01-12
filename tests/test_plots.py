@@ -16,12 +16,13 @@ import pandas as pd
 import random
 import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
 
+from genetools import plots
 from genetools.palette import HueValueStyle
 
 matplotlib.use("Agg")
-
-from genetools import plots
 
 random_seed = 12345
 np.random.seed(random_seed)
@@ -135,5 +136,114 @@ def test_stacked_bar_plot_autocompute_frequencies():
             enable_legend=enable_legend,
         )
         ax.set_title(disease)
+
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_wrap_axis_labels():
+    df = pd.DataFrame(
+        [{"cluster": "very long cluster name 1", "expanded": "Not expanded"}] * 10
+        + [{"cluster": "very long cluster name 1", "expanded": "Expanded"}] * 20
+        + [{"cluster": "very long cluster name 2", "expanded": "Not expanded"}] * 50
+        + [{"cluster": "very long cluster name 2", "expanded": "Expanded"}] * 5
+        + [{"cluster": "very long cluster name 3", "expanded": "Not expanded"}] * 15
+        + [{"cluster": "very long cluster name 3", "expanded": "Expanded"}] * 15
+    )
+    fig, ax = plots.stacked_bar_plot(
+        df,
+        index_key="cluster",
+        hue_key="expanded",
+        figsize=(8, 8),
+        normalize=False,
+        vertical=True,
+    )
+
+    # it's tempting to do a before-vs-after comparison of label text directly,
+    # but tick labels are not actually available until the plot is drawn (see the comments in wrap_tick_labels()),
+    # and forcing plot drawing for the test would interfere with actually testing that wrap_tick_labels does that on its own.
+
+    # Wrap axis text labels
+    # Confirm there is no UserWarning: FixedFormatter should only be used together with FixedLocator
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10)
+
+    assert (
+        ax.get_xticklabels()[0].get_text() != "very long cluster name 1"
+    ), "x tick labels should be wrapped"
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_add_sample_size_to_labels():
+    # make more sick patients and have their distances be more dispersed
+    n_healthy = 10
+    n_sick = 20
+    df = pd.DataFrame(
+        {
+            "distance": np.hstack(
+                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
+            ),
+            "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
+        }
+    )
+    df["distance"] += 10
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df, x="distance", y="disease type", ax=ax)
+
+    # Add sample size to labels
+    ax.set_yticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_yticklabels(), data=df, hue_key="disease type"
+        )
+    )
+    assert ax.get_yticklabels()[0].get_text() == "Healthy\n($n=10$)"
+
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_wrap_labels_overrides_any_linebreaks_in_labels():
+    # make more sick patients and have their distances be more dispersed
+    n_healthy = 10
+    n_sick = 20
+    df = pd.DataFrame(
+        {
+            "distance": np.hstack(
+                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
+            ),
+            "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
+        }
+    )
+    df["distance"] += 10
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df, y="distance", x="disease type", ax=ax)
+
+    # Add sample size to labels
+    ax.set_xticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_xticklabels(), data=df, hue_key="disease type"
+        )
+    )
+
+    # Wrap y-axis text labels
+    # The labels will have linebreaks already from previous step,
+    # but wrap_tick_labels will remove them as needed to follow its wrap_amount parameter
+    assert ax.get_xticklabels()[0].get_text() == "Healthy\n($n=10$)"  # line break
+    plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
+    assert (
+        ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
+    )  # no more line break
+
+    # Also confirm that rerunning has no further effect
+    plots.wrap_tick_labels(ax, wrap_x_axis=False, wrap_y_axis=False)
+    assert (
+        ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
+    )  # no more line break
+    plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
+    assert (
+        ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
+    )  # no more line break
 
     return fig
