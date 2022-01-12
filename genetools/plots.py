@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import textwrap
 
 from typing import Union, List, Dict
 
@@ -503,6 +504,33 @@ def stacked_bar_plot(
 
     sns.despine(ax=ax)
     return fig, ax
+
+
+def wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20):
+    """Add text wrapping to tick labels on x and/or y axes on any plot."""
+
+    # At this point, ax.get_xticklabels() may return empty tick labels and emit UserWarning: FixedFormatter should only be used together with FixedLocator
+    # It seems this happens for numerical axes specifically.
+    # Must draw the canvas to position the ticks: https://stackoverflow.com/a/41124884/130164
+    # And must assign tick locations prior to assigning tick labels, i.e. set_ticks(get_ticks()): https://stackoverflow.com/a/68794383/130164
+    ax.get_figure().canvas.draw()
+
+    def wrap_labels(labels):
+        for label in labels:
+            label.set_text("\n".join(textwrap.wrap(label.get_text(), wrap_amount)))
+        return labels
+
+    if wrap_x_axis:
+        # Wrap x-axis text labels
+        ax.set_xticks(ax.get_xticks())
+        ax.set_xticklabels(wrap_labels(ax.get_xticklabels()))
+
+    if wrap_y_axis:
+        # Wrap y-axis text labels
+        ax.set_yticks(ax.get_yticks())
+        ax.set_yticklabels(wrap_labels(ax.get_yticklabels()))
+
+    return ax
 
 
 ####

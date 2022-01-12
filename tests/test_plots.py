@@ -16,6 +16,7 @@ import pandas as pd
 import random
 import matplotlib
 import matplotlib.pyplot as plt
+import warnings
 
 from genetools.palette import HueValueStyle
 
@@ -136,4 +137,31 @@ def test_stacked_bar_plot_autocompute_frequencies():
         )
         ax.set_title(disease)
 
+    return fig
+
+
+@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+def test_wrap_axis_labels():
+    df = pd.DataFrame(
+        [{"cluster": "very long cluster name 1", "expanded": "Not expanded"}] * 10
+        + [{"cluster": "very long cluster name 1", "expanded": "Expanded"}] * 20
+        + [{"cluster": "very long cluster name 2", "expanded": "Not expanded"}] * 50
+        + [{"cluster": "very long cluster name 2", "expanded": "Expanded"}] * 5
+        + [{"cluster": "very long cluster name 3", "expanded": "Not expanded"}] * 15
+        + [{"cluster": "very long cluster name 3", "expanded": "Expanded"}] * 15
+    )
+    fig, ax = plots.stacked_bar_plot(
+        df,
+        index_key="cluster",
+        hue_key="expanded",
+        figsize=(8, 8),
+        normalize=False,
+        vertical=True,
+    )
+
+    # Wrap axis text labels
+    # Confirm there is no UserWarning: FixedFormatter should only be used together with FixedLocator
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10)
     return fig
