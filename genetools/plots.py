@@ -7,7 +7,7 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import textwrap
 
-from typing import Union, List, Dict
+from typing import Tuple, Union, List, Dict
 
 from .palette import HueValueStyle, convert_palette_list_to_dict
 
@@ -95,8 +95,10 @@ def scatterplot(
     label_size=15,
     remove_x_ticks=False,
     remove_y_ticks=False,
+    tight_layout=True,
+    despine=True,
     **kwargs,
-) -> (matplotlib.figure.Figure, matplotlib.axes.Axes):
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
     For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
@@ -168,8 +170,12 @@ def scatterplot(
     :param remove_y_ticks: Remove Y axis tick marks and labels, defaults to False
     :type remove_y_ticks: bool, optional
     :raises ValueError: Must specify correct number of colors if supplying a custom palette
+    :param tight_layout: whether to format the figure with tight_layout, defaults to True
+    :type tight_layout: bool, optional
+    :param despine: whether to despine (remove the top and right figure borders), defaults to True
+    :type despine: bool, optional
     :return: Matplotlib Figure and Axes
-    :rtype: (matplotlib.figure.Figure, matplotlib.axes.Axes)
+    :rtype: Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
     """
 
     if ax is None:
@@ -240,7 +246,8 @@ def scatterplot(
     # Run tight_layout before adding legend,
     # especially before adding inset_axes colorbar (which wouldn't be included in tight_layout anyway, but may throw error on some matplotlib versions)
     # https://github.com/matplotlib/matplotlib/issues/21749
-    fig.tight_layout()
+    if tight_layout:
+        fig.tight_layout()
 
     if enable_legend:
         if continuous_hue:
@@ -349,7 +356,8 @@ def scatterplot(
         ax.set_yticks([])
         ax.set_yticklabels([])
 
-    sns.despine(ax=ax)
+    if despine:
+        sns.despine(ax=ax)
 
     return fig, ax
 
@@ -371,7 +379,7 @@ def stacked_bar_plot(
     axis_label="Frequency",
     enable_legend=True,
     legend_title=None,
-) -> (matplotlib.figure.Figure, matplotlib.axes.Axes):
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Stacked bar chart.
 
     The ``index_key`` groups form the bars, and the ``hue_key`` groups subdivide the bars.
