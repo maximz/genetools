@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -10,16 +11,57 @@ from typing import Union, List, Dict
 
 from .palette import HueValueStyle, convert_palette_list_to_dict
 
+# Pulled this out of function so we can use it in tests directly.
+_savefig_defaults = {
+    # Handle legends outside of figure
+    # see https://github.com/mwaskom/seaborn/blob/77e3b6b03763d24cc99a8134ee9a6f43b32b8e7b/seaborn/axisgrid.py#L63
+    "bbox_inches": "tight",
+    # Determinstic PDF output:
+    # see https://matplotlib.org/2.1.1/users/whats_new.html#reproducible-ps-pdf-and-svg-output
+    # and https://github.com/matplotlib/matplotlib/issues/6317/
+    # and https://github.com/matplotlib/matplotlib/pull/6597
+    # and https://github.com/matplotlib/matplotlib/pull/7748
+    # Supposedly this should have done the job, but it doesn't seem to work:
+    # 'metadata': {'creationDate': None}
+}
 
-def savefig(fig, *args, **kwargs):
+
+def savefig(fig: matplotlib.figure.Figure, *args, **kwargs):
     """
-    Save figure with tight bounding box.
-    Pulling the legend outside a figure expands figure size and requires calling savefig with ``bbox_inches='tight'``.
+    Save figure with smart defaults:
+
+    * Tight bounding box -- necessary for legends outside of figure
+    * Determinsistic PDF output by fixing SOURCE_DATE_EPOCH to Jan 1, 2000
+    * Editable text objects when outputing a vector PDF
+
+    Example usage: ``genetools.plots.savefig(fig, "my_plot.png", dpi=300)``.
+
+    Any positional or keyword arguments are passed to ``matplotlib.pyplot.savefig``.
+
+    :param fig: Figure to save.
+    :type fig: matplotlib.figure.Figure
     """
-    # From https://github.com/mwaskom/seaborn/blob/master/seaborn/axisgrid.py#L33
-    kwargs = kwargs.copy()
-    kwargs.setdefault("bbox_inches", "tight")
-    fig.savefig(*args, **kwargs)
+    # combine the two dictionaries
+    kwargs = {**_savefig_defaults, **kwargs}
+
+    # Determinsitic PDF output: set SOURCE_DATE_EPOCH to a constant value temporarily
+    # Per docs, passing metadata to savefig should have done the job, but it doesn't seem to work.
+    original_source_date_epoch = os.environ.pop("SOURCE_DATE_EPOCH", None)
+    os.environ["SOURCE_DATE_EPOCH"] = "946684800"  # 2000 Jan 01 00:00:00 UTC
+
+    try:
+        # To ensure text is editable when we save figures in vector format,
+        # set fonttype to Type 42 (TrueType)
+        # per https://matplotlib.org/stable/tutorials/introductory/customizing.html#customizing-with-matplotlibrc-files
+        # and https://stackoverflow.com/a/54111532/130164
+        with plt.rc_context({"pdf.fonttype": 42, "ps.fonttype": 42}):
+            fig.savefig(*args, **kwargs)
+    finally:
+        # Restore SOURCE_DATE_EPOCH to original value
+        if original_source_date_epoch is None:
+            os.environ.pop("SOURCE_DATE_EPOCH", None)
+        else:
+            os.environ["SOURCE_DATE_EPOCH"] = original_source_date_epoch
 
 
 def scatterplot(

@@ -18,6 +18,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
+import hashlib
 
 from genetools import plots
 from genetools.palette import HueValueStyle
@@ -28,8 +29,11 @@ random_seed = 12345
 np.random.seed(random_seed)
 random.seed(random_seed)
 
+# Define our own decorator for snapshot testing.
+snapshot_image = pytest.mark.mpl_image_compare(savefig_kwargs=plots._savefig_defaults)
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+
+@snapshot_image
 def test_scatterplot_discrete(adata):
     """Test scatterplot with discrete hue."""
     fig, _ = plots.scatterplot(
@@ -46,7 +50,7 @@ def test_scatterplot_discrete(adata):
     return fig
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+@snapshot_image
 def test_scatterplot_continuous(adata):
     """Test scatterplot with continouous hue."""
     # also test supplying our own axes
@@ -66,7 +70,7 @@ def test_scatterplot_continuous(adata):
     return fig
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+@snapshot_image
 def test_stacked_bar_plot():
     df = pd.DataFrame(
         {
@@ -92,7 +96,7 @@ def test_stacked_bar_plot():
     return fig
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+@snapshot_image
 def test_stacked_bar_plot_autocompute_frequencies():
     df = pd.DataFrame(
         [{"disease": "Covid", "cluster": 1, "expanded": "Not expanded"}] * 10
@@ -140,7 +144,7 @@ def test_stacked_bar_plot_autocompute_frequencies():
     return fig
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+@snapshot_image
 def test_wrap_axis_labels():
     df = pd.DataFrame(
         [{"cluster": "very long cluster name 1", "expanded": "Not expanded"}] * 10
@@ -175,7 +179,7 @@ def test_wrap_axis_labels():
     return fig
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+@snapshot_image
 def test_add_sample_size_to_labels():
     # make more sick patients and have their distances be more dispersed
     n_healthy = 10
@@ -203,7 +207,7 @@ def test_add_sample_size_to_labels():
     return fig
 
 
-@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})
+@snapshot_image
 def test_wrap_labels_overrides_any_linebreaks_in_labels():
     # make more sick patients and have their distances be more dispersed
     n_healthy = 10
@@ -247,3 +251,31 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels():
     )  # no more line break
 
     return fig
+
+
+def test_pdf_deterministic_output(tmp_path):
+    # Can't use snapshot_image here because pytest-mpl doesn't support PDF
+    # So we are doing our own snapshot test md5 checksum here
+    # This also allows us to test genetools.plots.savefig directly.
+
+    fname = tmp_path / "test_pdf_determinstic_output.pdf"
+
+    fig = plt.figure()
+    plt.scatter([0, 1], [0, 1], label="Series")
+    plt.legend(loc="best")
+    plt.title("Title")
+    plt.xlabel("X axis")
+    plt.xlabel("Y axis")
+
+    plots.savefig(fig, fname)
+
+    def get_md5(fname):
+        with open(fname, "rb") as f:
+            return hashlib.md5(f.read()).hexdigest()
+
+    # A hacky snapshot test: put expected md5sum here
+    expected_md5 = "4fae9ebe9cb8f837aed495fee12ca179"
+    observed_md5 = get_md5(fname)
+    assert (
+        expected_md5 == observed_md5
+    ), f"{fname} md5sum mismatch: got {observed_md5}, expected {expected_md5}"
