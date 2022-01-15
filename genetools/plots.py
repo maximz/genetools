@@ -1,23 +1,67 @@
+import os
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import textwrap
 
-from typing import Union, List, Dict
+from typing import Tuple, Union, List, Dict
 
 from .palette import HueValueStyle, convert_palette_list_to_dict
 
+# Pulled this out of function so we can use it in tests directly.
+_savefig_defaults = {
+    # Handle legends outside of figure
+    # see https://github.com/mwaskom/seaborn/blob/77e3b6b03763d24cc99a8134ee9a6f43b32b8e7b/seaborn/axisgrid.py#L63
+    "bbox_inches": "tight",
+    # Determinstic PDF output:
+    # see https://matplotlib.org/2.1.1/users/whats_new.html#reproducible-ps-pdf-and-svg-output
+    # and https://github.com/matplotlib/matplotlib/issues/6317/
+    # and https://github.com/matplotlib/matplotlib/pull/6597
+    # and https://github.com/matplotlib/matplotlib/pull/7748
+    # Supposedly this should have done the job, but it doesn't seem to work:
+    # 'metadata': {'creationDate': None}
+}
 
-def savefig(fig, *args, **kwargs):
+
+def savefig(fig: matplotlib.figure.Figure, *args, **kwargs):
     """
-    Save figure with tight bounding box.
-    Pulling the legend outside a figure expands figure size and requires calling savefig with ``bbox_inches='tight'``.
+    Save figure with smart defaults:
+
+    * Tight bounding box -- necessary for legends outside of figure
+    * Determinsistic PDF output by fixing SOURCE_DATE_EPOCH to Jan 1, 2000
+    * Editable text objects when outputing a vector PDF
+
+    Example usage: ``genetools.plots.savefig(fig, "my_plot.png", dpi=300)``.
+
+    Any positional or keyword arguments are passed to ``matplotlib.pyplot.savefig``.
+
+    :param fig: Figure to save.
+    :type fig: matplotlib.figure.Figure
     """
-    # From https://github.com/mwaskom/seaborn/blob/master/seaborn/axisgrid.py#L33
-    kwargs = kwargs.copy()
-    kwargs.setdefault("bbox_inches", "tight")
-    fig.savefig(*args, **kwargs)
+    # combine the two dictionaries
+    kwargs = {**_savefig_defaults, **kwargs}
+
+    # Determinsitic PDF output: set SOURCE_DATE_EPOCH to a constant value temporarily
+    # Per docs, passing metadata to savefig should have done the job, but it doesn't seem to work.
+    original_source_date_epoch = os.environ.pop("SOURCE_DATE_EPOCH", None)
+    os.environ["SOURCE_DATE_EPOCH"] = "946684800"  # 2000 Jan 01 00:00:00 UTC
+
+    try:
+        # To ensure text is editable when we save figures in vector format,
+        # set fonttype to Type 42 (TrueType)
+        # per https://matplotlib.org/stable/tutorials/introductory/customizing.html#customizing-with-matplotlibrc-files
+        # and https://stackoverflow.com/a/54111532/130164
+        with plt.rc_context({"pdf.fonttype": 42, "ps.fonttype": 42}):
+            fig.savefig(*args, **kwargs)
+    finally:
+        # Restore SOURCE_DATE_EPOCH to original value
+        if original_source_date_epoch is None:
+            os.environ.pop("SOURCE_DATE_EPOCH", None)
+        else:
+            os.environ["SOURCE_DATE_EPOCH"] = original_source_date_epoch
 
 
 def scatterplot(
@@ -30,12 +74,12 @@ def scatterplot(
     discrete_palette: Union[
         Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]]
     ] = None,
-    ax=None,
+    ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
-    marker_size=15,
+    marker_size=25,
     alpha=1.0,
     na_color="lightgray",
-    marker=".",
+    marker="o",
     marker_edge_color="none",
     enable_legend=True,
     legend_hues=None,
@@ -51,8 +95,10 @@ def scatterplot(
     label_size=15,
     remove_x_ticks=False,
     remove_y_ticks=False,
+    tight_layout=True,
+    despine=True,
     **kwargs,
-):
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
     For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
@@ -82,18 +128,18 @@ def scatterplot(
     :param discrete_palette: Palette of colors and/or HueValueStyle objects to use for plotting discrete/categorical hue groups, defaults to None. Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
     :type discrete_palette: ``Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ]``, optional
     :param ax: Existing matplotlib Axes to plot on, defaults to None
-    :type ax: matplotlib.Axes, optional
+    :type ax: matplotlib.axes.Axes, optional
     :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
-    :param marker_size: Default marker size, unless overriden by a HueValueStyle, defaults to 15
+    :param marker_size: Base marker size. Maybe scaled by individual HueValueStyles. Defaults to 25
     :type marker_size: int, optional
     :param alpha: Default point transparency, unless overriden by a HueValueStyle, defaults to 1.0
     :type alpha: float, optional
     :param na_color: Fallback color to use for discrete hue categories that do not have an assigned style in discrete_palette, defaults to "lightgray"
     :type na_color: str, optional
-    :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "."
+    :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "o". For plots with many points, try "." instead.
     :type marker: str, optional
-    :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none"
+    :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none" (no edge border drawn). Another common choice is "face", so the edge color matches the face color.
     :type marker_edge_color: str, optional
     :param enable_legend: Whether legend (or colorbar if continuous_hue) should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
     :type enable_legend: bool, optional
@@ -124,8 +170,12 @@ def scatterplot(
     :param remove_y_ticks: Remove Y axis tick marks and labels, defaults to False
     :type remove_y_ticks: bool, optional
     :raises ValueError: Must specify correct number of colors if supplying a custom palette
+    :param tight_layout: whether to format the figure with tight_layout, defaults to True
+    :type tight_layout: bool, optional
+    :param despine: whether to despine (remove the top and right figure borders), defaults to True
+    :type despine: bool, optional
     :return: Matplotlib Figure and Axes
-    :rtype: (matplotlib.Figure, matplotlib.Axes)
+    :rtype: Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
     """
 
     if ax is None:
@@ -139,11 +189,7 @@ def scatterplot(
     scattered_object = None
 
     default_style = HueValueStyle(
-        color=na_color,
-        marker=marker,
-        marker_size=marker_size,
-        edgecolors=marker_edge_color,
-        alpha=alpha,
+        color=na_color, marker=marker, edgecolors=marker_edge_color, alpha=alpha
     )
 
     if continuous_hue:
@@ -153,7 +199,7 @@ def scatterplot(
             data[y_axis_key].values,
             c=data[hue_key].values,
             cmap=continuous_cmap,
-            **default_style.render_scatter_continuous_props(),
+            **default_style.render_scatter_continuous_props(marker_size=marker_size),
             plotnonfinite=plotnonfinite,
             **kwargs,
         )
@@ -188,7 +234,7 @@ def scatterplot(
             scattered_object = ax.scatter(
                 hue_df[x_axis_key].values,
                 hue_df[y_axis_key].values,
-                **marker_style.render_scatter_props(),
+                **marker_style.render_scatter_props(marker_size=marker_size),
                 plotnonfinite=plotnonfinite,
                 **kwargs,
             )
@@ -196,7 +242,8 @@ def scatterplot(
     # Run tight_layout before adding legend,
     # especially before adding inset_axes colorbar (which wouldn't be included in tight_layout anyway, but may throw error on some matplotlib versions)
     # https://github.com/matplotlib/matplotlib/issues/21749
-    fig.tight_layout()
+    if tight_layout:
+        fig.tight_layout()
 
     if enable_legend:
         if continuous_hue:
@@ -264,9 +311,11 @@ def scatterplot(
                 framealpha=0.0,
                 # legend title
                 title=legend_title,
-                # legend title font properties
-                # TODO: requires newer matplotlib:
+                # legend title font properties: TODO: requires newer matplotlib:
                 # title_fontproperties={"weight": "bold", "size": "medium"},
+                # Configure number of points in legend
+                numpoints=1,
+                scatterpoints=1,
             )
             # set legend title to bold - workaround for title_fontproperties missing from old matplotlib versions
             leg.set_title(title=legend_title, prop={"weight": "bold", "size": "medium"})
@@ -305,7 +354,8 @@ def scatterplot(
         ax.set_yticks([])
         ax.set_yticklabels([])
 
-    sns.despine(ax=ax)
+    if despine:
+        sns.despine(ax=ax)
 
     return fig, ax
 
@@ -315,7 +365,7 @@ def stacked_bar_plot(
     index_key,
     hue_key,
     value_key=None,
-    ax=None,
+    ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
     normalize=True,
     vertical=False,
@@ -327,7 +377,7 @@ def stacked_bar_plot(
     axis_label="Frequency",
     enable_legend=True,
     legend_title=None,
-):
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Stacked bar chart.
 
     The ``index_key`` groups form the bars, and the ``hue_key`` groups subdivide the bars.
@@ -348,7 +398,7 @@ def stacked_bar_plot(
     :param value_key: Column name defining the bar sizes. If not supplied, this method will calculate group frequencies automatically
     :type value_key: str, optional.
     :param ax: Existing matplotlib Axes to plot on, defaults to None
-    :type ax: matplotlib.Axes, optional
+    :type ax: matplotlib.axes.Axes, optional
     :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
     :param normalize: Normalize each row's frequencies to sum to 1, defaults to True
@@ -369,7 +419,7 @@ def stacked_bar_plot(
     :type legend_title: str, optional
     :raises ValueError: Must specify correct number of colors if supplying a custom palette
     :return: Matplotlib Figure and Axes
-    :rtype: (matplotlib.Figure, matplotlib.Axes)
+    :rtype: (matplotlib.figure.Figure, matplotlib.axes.Axes)
     """
 
     if value_key is None:
@@ -503,6 +553,85 @@ def stacked_bar_plot(
 
     sns.despine(ax=ax)
     return fig, ax
+
+
+def wrap_tick_labels(
+    ax: matplotlib.axes.Axes, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20
+) -> matplotlib.axes.Axes:
+    """Add text wrapping to tick labels on x and/or y axes on any plot.
+
+    May override existing line breaks in tick labels.
+
+    :param ax: existing plot with tick labels to be wrapped
+    :type ax: matplotlib.axes.Axes
+    :param wrap_x_axis: whether to wrap x-axis tick labels, defaults to True
+    :type wrap_x_axis: bool, optional
+    :param wrap_y_axis: whether to wrap y-axis tick labels, defaults to True
+    :type wrap_y_axis: bool, optional
+    :param wrap_amount: length of each line of text, defaults to 20
+    :type wrap_amount: int, optional
+    :return: plot with modified tick labels
+    :rtype: matplotlib.axes.Axes
+    """
+
+    # At this point, ax.get_xticklabels() may return empty tick labels and emit UserWarning: FixedFormatter should only be used together with FixedLocator
+    # It seems this happens for numerical axes specifically.
+    # Must draw the canvas to position the ticks: https://stackoverflow.com/a/41124884/130164
+    # And must assign tick locations prior to assigning tick labels, i.e. set_ticks(get_ticks()): https://stackoverflow.com/a/68794383/130164
+    ax.get_figure().canvas.draw()
+
+    def wrap_labels(labels):
+        for label in labels:
+            label.set_text("\n".join(textwrap.wrap(label.get_text(), wrap_amount)))
+        return labels
+
+    if wrap_x_axis:
+        # Wrap x-axis text labels
+        ax.set_xticks(ax.get_xticks())
+        ax.set_xticklabels(wrap_labels(ax.get_xticklabels()))
+
+    if wrap_y_axis:
+        # Wrap y-axis text labels
+        ax.set_yticks(ax.get_yticks())
+        ax.set_yticklabels(wrap_labels(ax.get_yticklabels()))
+
+    return ax
+
+
+def add_sample_size_to_labels(labels: list, data: pd.DataFrame, hue_key: str) -> list:
+    """Add sample size to tick labels on any plot with categorical groups.
+
+    Sample size for each label is extracted from the ``hue_key`` column of dataframe ``data``.
+
+    Pairs well with ``genetools.plots.wrap_tick_labels(ax)``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        ax.set_xticklabels(
+            genetools.plots.add_sample_size_to_labels(
+                ax.get_xticklabels(),
+                df,
+                "Group"
+            )
+        )
+
+    :param labels: list of tick labels corresponding to groups in ``data[hue_key]``
+    :type labels: list
+    :param data: dataset with categorical groups
+    :type data: pd.DataFrame
+    :param hue_key: column name specifying categorical groups in dataset ``data``
+    :type hue_key: str
+    :return: modified tick labels with group sample sizes attached
+    :rtype: list
+    """
+
+    def _make_label(hue_value):
+        sample_size = data[data[hue_key] == hue_value].shape[0]
+        return f"{hue_value}\n($n={sample_size}$)"
+
+    return [_make_label(label.get_text()) for label in labels]
 
 
 ####
