@@ -64,7 +64,7 @@ def test_scatterplot_continuous(adata):
         hue_key="CST3",
         continuous_hue=True,
         ax=ax,
-        marker_size=15,
+        marker_size=None,
         alpha=0.8,
         marker=".",
         legend_title="Cluster",
@@ -291,18 +291,26 @@ def test_palette_with_unfilled_shapes():
     df["x"] = np.random.randn(5)
     df["y"] = np.random.randn(5)
     df["hue"] = "groupA"
+    # HueValueStyle demo: unfilled shapes. Set facecolors to "none" and set edgecolors to desired color.
     palette = {
         "groupA": HueValueStyle(
             color=sns.color_palette("bright")[0],
-            facecolors="none",
             edgecolors=sns.color_palette("bright")[0],
-            #     edgecolors = 'face',
+            facecolors="none",
             marker="^",
             marker_size_scale_factor=1.5,
             linewidths=1.5,
+            zorder=10,
         )
     }
     fig, _ = plots.scatterplot(
-        df, "x", "y", "hue", marker="o", discrete_palette=palette
+        data=df,
+        x_axis_key="x",
+        y_axis_key="y",
+        hue_key="hue",
+        discrete_palette=palette,
+        marker="o",
+        marker_edge_color="none",
+        marker_size=None,
     )
     return fig

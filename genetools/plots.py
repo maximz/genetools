@@ -139,7 +139,7 @@ def scatterplot(
     :type na_color: str, optional
     :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "o". For plots with many points, try "." instead.
     :type marker: str, optional
-    :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none"
+    :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none" (no edge border drawn). Another common choice is "face", so the edge color matches the face color.
     :type marker_edge_color: str, optional
     :param enable_legend: Whether legend (or colorbar if continuous_hue) should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
     :type enable_legend: bool, optional

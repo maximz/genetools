@@ -35,6 +35,24 @@ class HueValueStyle:
     * Rectangle/barplot color and hatch pattern.
     * Size scale factor for scatterplot markers and legend entries. (The palette of HueValueStyles is defined separately from choosing marker size, and can be plotted at any selected base marker size.)
 
+    Here's an example of assigning a custom HueValueStyle to a hue value in a color palette.
+    This defines a custom unfilled shape, a custom z-order, and more:
+
+    .. code-block:: python
+
+        palette = {
+            "group_A": genetools.palette.HueValueStyle(
+                color=sns.color_palette("bright")[0],
+                edgecolors=sns.color_palette("bright")[0],
+                facecolors="none",
+                marker="^",
+                marker_size_scale_factor=1.5,
+                linewidths=1.5,
+                zorder=10,
+            ),
+            ...
+        }
+
     For face and edge colors, ``None`` is the default value; to disable them, set to string ``'none'``.
     """
 
