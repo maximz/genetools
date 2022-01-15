@@ -41,7 +41,9 @@ def test_scatterplot_discrete(adata):
         x_axis_key="umap_1",
         y_axis_key="umap_2",
         hue_key="louvain",
+        marker_size=15,
         alpha=0.8,
+        marker=".",
         legend_title="Cluster",
         label_key="louvain",
         remove_x_ticks=True,
@@ -62,7 +64,9 @@ def test_scatterplot_continuous(adata):
         hue_key="CST3",
         continuous_hue=True,
         ax=ax,
+        marker_size=None,
         alpha=0.8,
+        marker=".",
         legend_title="Cluster",
         equal_aspect_ratio=True,
         label_key="louvain",
@@ -279,3 +283,34 @@ def test_pdf_deterministic_output(tmp_path):
     assert (
         expected_md5 == observed_md5
     ), f"{fname} md5sum mismatch: got {observed_md5}, expected {expected_md5}"
+
+
+@snapshot_image
+def test_palette_with_unfilled_shapes():
+    df = pd.DataFrame()
+    df["x"] = np.random.randn(5)
+    df["y"] = np.random.randn(5)
+    df["hue"] = "groupA"
+    # HueValueStyle demo: unfilled shapes. Set facecolors to "none" and set edgecolors to desired color.
+    palette = {
+        "groupA": HueValueStyle(
+            color=sns.color_palette("bright")[0],
+            edgecolors=sns.color_palette("bright")[0],
+            facecolors="none",
+            marker="^",
+            marker_size_scale_factor=1.5,
+            linewidths=1.5,
+            zorder=10,
+        )
+    }
+    fig, _ = plots.scatterplot(
+        data=df,
+        x_axis_key="x",
+        y_axis_key="y",
+        hue_key="hue",
+        discrete_palette=palette,
+        marker="o",
+        marker_edge_color="none",
+        marker_size=None,
+    )
+    return fig

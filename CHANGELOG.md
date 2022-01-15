@@ -6,6 +6,10 @@
     * `wrap_tick_labels`: add text wrapping
     * `add_sample_size_to_labels`: add group sample sizes with a `(n=N)` suffix
 * Make writing PDF figures a deterministic process and make the PDF text editable.
+* Scatterplot improvements:
+    - Adjust default marker shape and size to work better for most plots.
+    - Adjust HueValueStyle so that an explicit marker size is not specified there, only a marker size scaling factor. The scatterplot itself is responsible for defining the base marker size, while the palette of HueValueStyles should be drawable at any marker size.
+    - Change legends so that only one marker is drawn to indicate a group's style.
 
 ## 0.5.0 (2022-01-10)
 

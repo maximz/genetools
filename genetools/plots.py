@@ -7,7 +7,7 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import textwrap
 
-from typing import Union, List, Dict
+from typing import Tuple, Union, List, Dict
 
 from .palette import HueValueStyle, convert_palette_list_to_dict
 
@@ -76,10 +76,10 @@ def scatterplot(
     ] = None,
     ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
-    marker_size=15,
+    marker_size=25,
     alpha=1.0,
     na_color="lightgray",
-    marker=".",
+    marker="o",
     marker_edge_color="none",
     enable_legend=True,
     legend_hues=None,
@@ -95,8 +95,10 @@ def scatterplot(
     label_size=15,
     remove_x_ticks=False,
     remove_y_ticks=False,
+    tight_layout=True,
+    despine=True,
     **kwargs,
-) -> (matplotlib.figure.Figure, matplotlib.axes.Axes):
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
     For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
@@ -129,15 +131,15 @@ def scatterplot(
     :type ax: matplotlib.axes.Axes, optional
     :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
-    :param marker_size: Default marker size, unless overriden by a HueValueStyle, defaults to 15
+    :param marker_size: Base marker size. Maybe scaled by individual HueValueStyles. Defaults to 25
     :type marker_size: int, optional
     :param alpha: Default point transparency, unless overriden by a HueValueStyle, defaults to 1.0
     :type alpha: float, optional
     :param na_color: Fallback color to use for discrete hue categories that do not have an assigned style in discrete_palette, defaults to "lightgray"
     :type na_color: str, optional
-    :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "."
+    :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "o". For plots with many points, try "." instead.
     :type marker: str, optional
-    :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none"
+    :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none" (no edge border drawn). Another common choice is "face", so the edge color matches the face color.
     :type marker_edge_color: str, optional
     :param enable_legend: Whether legend (or colorbar if continuous_hue) should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
     :type enable_legend: bool, optional
@@ -168,8 +170,12 @@ def scatterplot(
     :param remove_y_ticks: Remove Y axis tick marks and labels, defaults to False
     :type remove_y_ticks: bool, optional
     :raises ValueError: Must specify correct number of colors if supplying a custom palette
+    :param tight_layout: whether to format the figure with tight_layout, defaults to True
+    :type tight_layout: bool, optional
+    :param despine: whether to despine (remove the top and right figure borders), defaults to True
+    :type despine: bool, optional
     :return: Matplotlib Figure and Axes
-    :rtype: (matplotlib.figure.Figure, matplotlib.axes.Axes)
+    :rtype: Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
     """
 
     if ax is None:
@@ -183,11 +189,7 @@ def scatterplot(
     scattered_object = None
 
     default_style = HueValueStyle(
-        color=na_color,
-        marker=marker,
-        marker_size=marker_size,
-        edgecolors=marker_edge_color,
-        alpha=alpha,
+        color=na_color, marker=marker, edgecolors=marker_edge_color, alpha=alpha
     )
 
     if continuous_hue:
@@ -197,7 +199,7 @@ def scatterplot(
             data[y_axis_key].values,
             c=data[hue_key].values,
             cmap=continuous_cmap,
-            **default_style.render_scatter_continuous_props(),
+            **default_style.render_scatter_continuous_props(marker_size=marker_size),
             plotnonfinite=plotnonfinite,
             **kwargs,
         )
@@ -232,7 +234,7 @@ def scatterplot(
             scattered_object = ax.scatter(
                 hue_df[x_axis_key].values,
                 hue_df[y_axis_key].values,
-                **marker_style.render_scatter_props(),
+                **marker_style.render_scatter_props(marker_size=marker_size),
                 plotnonfinite=plotnonfinite,
                 **kwargs,
             )
@@ -240,7 +242,8 @@ def scatterplot(
     # Run tight_layout before adding legend,
     # especially before adding inset_axes colorbar (which wouldn't be included in tight_layout anyway, but may throw error on some matplotlib versions)
     # https://github.com/matplotlib/matplotlib/issues/21749
-    fig.tight_layout()
+    if tight_layout:
+        fig.tight_layout()
 
     if enable_legend:
         if continuous_hue:
@@ -308,9 +311,11 @@ def scatterplot(
                 framealpha=0.0,
                 # legend title
                 title=legend_title,
-                # legend title font properties
-                # TODO: requires newer matplotlib:
+                # legend title font properties: TODO: requires newer matplotlib:
                 # title_fontproperties={"weight": "bold", "size": "medium"},
+                # Configure number of points in legend
+                numpoints=1,
+                scatterpoints=1,
             )
             # set legend title to bold - workaround for title_fontproperties missing from old matplotlib versions
             leg.set_title(title=legend_title, prop={"weight": "bold", "size": "medium"})
@@ -349,7 +354,8 @@ def scatterplot(
         ax.set_yticks([])
         ax.set_yticklabels([])
 
-    sns.despine(ax=ax)
+    if despine:
+        sns.despine(ax=ax)
 
     return fig, ax
 
@@ -371,7 +377,7 @@ def stacked_bar_plot(
     axis_label="Frequency",
     enable_legend=True,
     legend_title=None,
-) -> (matplotlib.figure.Figure, matplotlib.axes.Axes):
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Stacked bar chart.
 
     The ``index_key`` groups form the bars, and the ``hue_key`` groups subdivide the bars.
