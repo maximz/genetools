@@ -76,10 +76,10 @@ def scatterplot(
     ] = None,
     ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
-    marker_size=15,
+    marker_size=25,
     alpha=1.0,
     na_color="lightgray",
-    marker=".",
+    marker="o",
     marker_edge_color="none",
     enable_legend=True,
     legend_hues=None,
@@ -131,13 +131,13 @@ def scatterplot(
     :type ax: matplotlib.axes.Axes, optional
     :param figsize: Size of figure to generate if no existing ax was provided, defaults to (8, 8)
     :type figsize: tuple, optional
-    :param marker_size: Default marker size, unless overriden by a HueValueStyle, defaults to 15
+    :param marker_size: Base marker size. Maybe scaled by individual HueValueStyles. Defaults to 25
     :type marker_size: int, optional
     :param alpha: Default point transparency, unless overriden by a HueValueStyle, defaults to 1.0
     :type alpha: float, optional
     :param na_color: Fallback color to use for discrete hue categories that do not have an assigned style in discrete_palette, defaults to "lightgray"
     :type na_color: str, optional
-    :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "."
+    :param marker: Default marker style, unless overriden by a HueValueStyle, defaults to "o". For plots with many points, try "." instead.
     :type marker: str, optional
     :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none"
     :type marker_edge_color: str, optional
@@ -189,11 +189,7 @@ def scatterplot(
     scattered_object = None
 
     default_style = HueValueStyle(
-        color=na_color,
-        marker=marker,
-        marker_size=marker_size,
-        edgecolors=marker_edge_color,
-        alpha=alpha,
+        color=na_color, marker=marker, edgecolors=marker_edge_color, alpha=alpha
     )
 
     if continuous_hue:
@@ -203,7 +199,7 @@ def scatterplot(
             data[y_axis_key].values,
             c=data[hue_key].values,
             cmap=continuous_cmap,
-            **default_style.render_scatter_continuous_props(),
+            **default_style.render_scatter_continuous_props(marker_size=marker_size),
             plotnonfinite=plotnonfinite,
             **kwargs,
         )
@@ -238,7 +234,7 @@ def scatterplot(
             scattered_object = ax.scatter(
                 hue_df[x_axis_key].values,
                 hue_df[y_axis_key].values,
-                **marker_style.render_scatter_props(),
+                **marker_style.render_scatter_props(marker_size=marker_size),
                 plotnonfinite=plotnonfinite,
                 **kwargs,
             )
@@ -315,9 +311,11 @@ def scatterplot(
                 framealpha=0.0,
                 # legend title
                 title=legend_title,
-                # legend title font properties
-                # TODO: requires newer matplotlib:
+                # legend title font properties: TODO: requires newer matplotlib:
                 # title_fontproperties={"weight": "bold", "size": "medium"},
+                # Configure number of points in legend
+                numpoints=1,
+                scatterpoints=1,
             )
             # set legend title to bold - workaround for title_fontproperties missing from old matplotlib versions
             leg.set_title(title=legend_title, prop={"weight": "bold", "size": "medium"})

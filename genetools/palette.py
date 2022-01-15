@@ -31,16 +31,16 @@ class HueValueStyle:
     The plotting functions accept a hue_key, which identifies a dataframe column that contains hue values.
     They also accept a palette mapping each hue value to a HueValueStyle that defines not just the color to use for that hue value, but also other styles:
 
-    * Scatterplot marker shape, size, primary color, face color, edge color, line width, transparency, and line width.
+    * Scatterplot marker shape, primary color, face color, edge color, line width, transparency, and line width.
     * Rectangle/barplot color and hatch pattern.
-    * Size scale factor for legend entries.
+    * Size scale factor for scatterplot markers and legend entries. (The palette of HueValueStyles is defined separately from choosing marker size, and can be plotted at any selected base marker size.)
 
     For face and edge colors, ``None`` is the default value; to disable them, set to string ``'none'``.
     """
 
     color: str
     marker: str = None
-    marker_size: int = None
+    marker_size_scale_factor: float = 1.0
     legend_size_scale_factor: float = 1.0
     facecolors: str = None
     edgecolors: str = None
@@ -83,12 +83,20 @@ class HueValueStyle:
         # returns copy
         return dataclasses.replace(self, **changes)
 
-    def render_scatter_props(self):
+    @staticmethod
+    def _get_default_marker_size():
+        """Return default marker size used by ax.scatter."""
+        return mpl.rcParams["lines.markersize"] ** 2
+
+    def render_scatter_props(self, marker_size=None):
         """Returns kwargs to pass to ax.scatter() to apply this style."""
+        if marker_size is None:
+            marker_size = self._get_default_marker_size()
+
         return dict(
             color=self.color,
             marker=self.marker,
-            s=self.marker_size,
+            s=marker_size * self.marker_size_scale_factor,
             facecolors=self.facecolors,
             edgecolors=self.edgecolors,
             linewidths=self.linewidths,
@@ -96,11 +104,13 @@ class HueValueStyle:
             alpha=self.alpha,
         )
 
-    def render_scatter_continuous_props(self):
+    def render_scatter_continuous_props(self, marker_size=None):
         """Returns kwargs to pass to ax.scatter() to apply this style, in the context of continuous cmap scatterplots."""
+        if marker_size is None:
+            marker_size = self._get_default_marker_size()
         return dict(
             marker=self.marker,
-            s=self.marker_size,
+            s=marker_size * self.marker_size_scale_factor,
             edgecolors=self.edgecolors,
             linewidths=self.linewidths,
             zorder=self.zorder,
@@ -109,10 +119,10 @@ class HueValueStyle:
 
     def render_scatter_legend_props(self):
         """Returns kwargs to pass to ax.legend() to apply this style."""
-        # apply scaling to the default marker size we'd get by calling ax.scatter without any size arguments.
+        # Apply scaling to the default marker size we'd get by calling ax.scatter without any size arguments.
         legend_marker_size = (
-            mpl.rcParams["lines.markersize"] ** 2
-        ) * self.legend_size_scale_factor
+            self._get_default_marker_size() * self.legend_size_scale_factor
+        )
 
         return dict(
             color=self.color,

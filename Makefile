@@ -60,8 +60,10 @@ build-docker-test-image: requirements_dev.txt
 	docker build -t genetools-test .
 
 ## run tests locally using the docker image that matches Github Actions platform
+# tests/results/tmp will be used for basetemp - can't use tests/results because then mpl results will be cleared out.
 test: build-docker-test-image
-	docker run --rm -it -v $$(pwd):/src genetools-test pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results --basetemp=tests/results -vv;
+	mkdir -p tests/results/tmp
+	docker run --rm -it -v $$(pwd):/src genetools-test pytest --cov=./ --cov-report term --cov-report xml --mpl --mpl-results-path=tests/results --basetemp=tests/results/tmp -vv;
 
 # run tests locally, without docker, therefore omitting the snapshot tests
 test-without-figures:
