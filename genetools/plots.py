@@ -68,7 +68,7 @@ def scatterplot(
     data,
     x_axis_key,
     y_axis_key,
-    hue_key,
+    hue_key=None,
     continuous_hue=False,
     continuous_cmap="viridis",
     discrete_palette: Union[
@@ -101,17 +101,21 @@ def scatterplot(
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
-    For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
+    For discrete hues, pass ``continuous_hue = False`` and a dictionary of colors and/or HueValueStyle objects in ``discrete_palette``.
 
     Figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
     So you must use ``fig.savefig('filename', bbox_inches='tight')``.
     This is provided automatically by ``genetools.plots.savefig(fig, 'filename')``.
 
-    If using with scanpy, to get umap data from adata.obsm into adata.obs, try:
+    If using with scanpy, to join umap data from ``adata.obsm`` with other plot data in ``adata.obs``, try:
 
     .. code-block:: python
 
         data = adata.obs.assign(umap_1=adata.obsm["X_umap"][:, 0], umap_2=adata.obsm["X_umap"][:, 1])
+
+    If ``hue_key = None``, then all points will be colored by ``na_color``
+    and styled with parameters ``alpha``, ``marker``, ``marker_size``, and ``marker_edge_color``.
+    The legend will be disabled.
 
     :param data: Input data, e.g. anndata.obs
     :type data: pandas.DataFrame
@@ -119,8 +123,8 @@ def scatterplot(
     :type x_axis_key: str
     :param y_axis_key: Column name to plot on Y axis
     :type y_axis_key: str
-    :param hue_key: Column name with hue groups that will be used to color points
-    :type hue_key: str
+    :param hue_key: Column name with hue groups that will be used to color points. defaults to None to color all points consistently.
+    :type hue_key: str, optional
     :param continuous_hue: Whether the hue column takes continuous or discrete/categorical values, defaults to False.
     :type continuous_hue: bool, optional
     :param continuous_cmap: Colormap to use for plotting continuous hue grouping variable, defaults to "viridis"
@@ -192,7 +196,15 @@ def scatterplot(
         color=na_color, marker=marker, edgecolors=marker_edge_color, alpha=alpha
     )
 
-    if continuous_hue:
+    if hue_key is None:
+        scattered_object = ax.scatter(
+            data[x_axis_key].values,
+            data[y_axis_key].values,
+            **default_style.render_scatter_props(marker_size=marker_size),
+            plotnonfinite=plotnonfinite,
+            **kwargs,
+        )
+    elif continuous_hue:
         # plot continuous variable with a colorbar
         scattered_object = ax.scatter(
             data[x_axis_key].values,
@@ -203,7 +215,6 @@ def scatterplot(
             plotnonfinite=plotnonfinite,
             **kwargs,
         )
-
     else:
         # plot discrete hue
         if legend_hues is None:
@@ -245,7 +256,7 @@ def scatterplot(
     if tight_layout:
         fig.tight_layout()
 
-    if enable_legend:
+    if enable_legend and hue_key is not None:
         if continuous_hue:
             # color bar
             # see also https://stackoverflow.com/a/44642014/130164

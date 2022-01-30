@@ -82,6 +82,25 @@ def test_scatterplot_continuous(adata):
 
 
 @snapshot_image
+def test_scatterplot_no_hue(adata):
+    """Test scatterplot with no hue hue."""
+    fig, _ = plots.scatterplot(
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
+        hue_key=None,
+        marker_size=15,
+        alpha=0.8,
+        marker=".",
+        legend_title="Cluster",
+        label_key="louvain",
+        remove_x_ticks=True,
+        remove_y_ticks=True,
+    )
+    return fig
+
+
+@snapshot_image
 def test_stacked_bar_plot():
     df = pd.DataFrame(
         {
