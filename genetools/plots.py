@@ -634,6 +634,50 @@ def add_sample_size_to_labels(labels: list, data: pd.DataFrame, hue_key: str) ->
     return [_make_label(label.get_text()) for label in labels]
 
 
+def add_sample_size_to_legend(
+    ax: matplotlib.axes.Axes, data: pd.DataFrame, hue_key: str
+) -> matplotlib.axes.Axes:
+    """Add sample size to legend labels on any plot with categorical hues.
+
+    Sample size for each label is extracted from the ``hue_key`` column of dataframe ``data``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        fig, ax = genetools.plots.scatterplot(
+            data=df,
+            x_axis_key="x",
+            y_axis_key="y",
+            hue_key="Group"
+        )
+        genetools.plots.add_sample_size_to_legend(
+            ax=ax,
+            data=df,
+            hue_key="Group"
+        )
+
+    :param ax: matplotlib Axes for existing plot
+    :type ax: matplotlib.axes.Axes
+    :param data: dataset with categorical groups
+    :type data: pd.DataFrame
+    :param hue_key: column name specifying categorical groups in dataset ``data``
+    :type hue_key: str
+    :return: matplotlib Axes with modified legend labels with group sample sizes attached
+    :rtype: matplotlib.axes.Axes
+    """
+
+    def _make_label(hue_value):
+        sample_size = data[data[hue_key] == hue_value].shape[0]
+        return f"{hue_value} ($n={sample_size}$)"
+
+    legend = ax.get_legend()
+    for label in legend.get_texts():
+        label.set_text(_make_label(label.get_text()))
+
+    return ax
+
+
 ####
 
 

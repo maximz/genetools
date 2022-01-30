@@ -29,6 +29,13 @@ random_seed = 12345
 np.random.seed(random_seed)
 random.seed(random_seed)
 
+
+@pytest.fixture
+def rng():
+    """Return a random number generator."""
+    return np.random.default_rng(random_seed)
+
+
 # Define our own decorator for snapshot testing.
 snapshot_image = pytest.mark.mpl_image_compare(savefig_kwargs=plots._savefig_defaults)
 
@@ -183,27 +190,33 @@ def test_wrap_axis_labels():
     return fig
 
 
-@snapshot_image
-def test_add_sample_size_to_labels():
+@pytest.fixture
+def categorical_df(rng):
     # make more sick patients and have their distances be more dispersed
     n_healthy = 10
     n_sick = 20
     df = pd.DataFrame(
         {
             "distance": np.hstack(
-                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
+                [rng.standard_normal(n_healthy), rng.standard_normal(n_sick) * 3]
             ),
             "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
         }
     )
     df["distance"] += 10
+    df["x"] = rng.standard_normal(df.shape[0])
+    return df
+
+
+@snapshot_image
+def test_add_sample_size_to_labels(categorical_df):
     fig, ax = plt.subplots()
-    sns.boxplot(data=df, x="distance", y="disease type", ax=ax)
+    sns.boxplot(data=categorical_df, x="distance", y="disease type", ax=ax)
 
     # Add sample size to labels
     ax.set_yticklabels(
         plots.add_sample_size_to_labels(
-            labels=ax.get_yticklabels(), data=df, hue_key="disease type"
+            labels=ax.get_yticklabels(), data=categorical_df, hue_key="disease type"
         )
     )
     assert ax.get_yticklabels()[0].get_text() == "Healthy\n($n=10$)"
@@ -212,26 +225,14 @@ def test_add_sample_size_to_labels():
 
 
 @snapshot_image
-def test_wrap_labels_overrides_any_linebreaks_in_labels():
-    # make more sick patients and have their distances be more dispersed
-    n_healthy = 10
-    n_sick = 20
-    df = pd.DataFrame(
-        {
-            "distance": np.hstack(
-                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
-            ),
-            "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
-        }
-    )
-    df["distance"] += 10
+def test_wrap_labels_overrides_any_linebreaks_in_labels(categorical_df):
     fig, ax = plt.subplots()
-    sns.boxplot(data=df, y="distance", x="disease type", ax=ax)
+    sns.boxplot(data=categorical_df, y="distance", x="disease type", ax=ax)
 
     # Add sample size to labels
     ax.set_xticklabels(
         plots.add_sample_size_to_labels(
-            labels=ax.get_xticklabels(), data=df, hue_key="disease type"
+            labels=ax.get_xticklabels(), data=categorical_df, hue_key="disease type"
         )
     )
 
@@ -253,6 +254,23 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels():
     assert (
         ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
     )  # no more line break
+
+    return fig
+
+
+@snapshot_image
+def test_add_sample_size_to_legend(categorical_df):
+    fig, ax = plots.scatterplot(
+        data=categorical_df,
+        x_axis_key="distance",
+        y_axis_key="disease type",
+        hue_key="disease type",
+    )
+
+    # Add sample size to legend
+    plots.add_sample_size_to_legend(ax=ax, data=categorical_df, hue_key="disease type")
+    assert ax.get_legend().get_texts()[0].get_text() == "Healthy ($n=10$)"
+    assert ax.get_legend().get_texts()[1].get_text() == "SARS-CoV-2 Patient ($n=20$)"
 
     return fig
 
@@ -291,10 +309,10 @@ def test_pdf_deterministic_output(tmp_path, snapshot):
 
 
 @snapshot_image
-def test_palette_with_unfilled_shapes():
+def test_palette_with_unfilled_shapes(rng):
     df = pd.DataFrame()
-    df["x"] = np.random.randn(5)
-    df["y"] = np.random.randn(5)
+    df["x"] = rng.standard_normal(5)
+    df["y"] = rng.standard_normal(5)
     df["hue"] = "groupA"
     # HueValueStyle demo: unfilled shapes. Set facecolors to "none" and set edgecolors to desired color.
     palette = {
