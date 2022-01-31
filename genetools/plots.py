@@ -77,10 +77,15 @@ def scatterplot(
     ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
     marker_size=25,
-    alpha=1.0,
+    alpha: float = 1.0,
     na_color="lightgray",
-    marker="o",
-    marker_edge_color="none",
+    marker: str = "o",
+    marker_edge_color: str = "none",
+    marker_zorder: int = 1,
+    marker_size_scale_factor: float = 1.0,
+    legend_size_scale_factor: float = 1.0,
+    marker_face_color: str = None,
+    marker_linewidths: float = None,
     enable_legend=True,
     legend_hues=None,
     legend_title=None,
@@ -114,7 +119,7 @@ def scatterplot(
         data = adata.obs.assign(umap_1=adata.obsm["X_umap"][:, 0], umap_2=adata.obsm["X_umap"][:, 1])
 
     If ``hue_key = None``, then all points will be colored by ``na_color``
-    and styled with parameters ``alpha``, ``marker``, ``marker_size``, and ``marker_edge_color``.
+    and styled with parameters ``alpha``, ``marker``, ``marker_size``, ``zorder``, and ``marker_edge_color``.
     The legend will be disabled.
 
     :param data: Input data, e.g. anndata.obs
@@ -145,6 +150,16 @@ def scatterplot(
     :type marker: str, optional
     :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none" (no edge border drawn). Another common choice is "face", so the edge color matches the face color.
     :type marker_edge_color: str, optional
+    :param marker_zorder: Default marker z-order, unless overriden by a HueValueStyle, defaults to 1
+    :type marker_zorder: int, optional
+    :param marker_size_scale_factor: Default marker size scale factor, unless overriden by a HueValueStyle, defaults to 1.0
+    :type marker_size_scale_factor: float, optional
+    :param legend_size_scale_factor: Default legend size scale factor, unless overriden by a HueValueStyle, defaults to 1.0
+    :type legend_size_scale_factor: float, optional
+    :param marker_face_color: Default marker face color, unless overriden by a HueValueStyle, defaults to None (uses point color).
+    :type marker_face_color: str, optional
+    :param marker_linewidths: Default marker line widths, unless overriden by a HueValueStyle, defaults to None
+    :type marker_linewidths: float, optional
     :param enable_legend: Whether legend (or colorbar if continuous_hue) should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
     :type enable_legend: bool, optional
     :param legend_hues: Optionally override the list of hue values to include in legend, e.g. to add any hue values missing from the plotted subset of data; defaults to None
@@ -193,7 +208,15 @@ def scatterplot(
     scattered_object = None
 
     default_style = HueValueStyle(
-        color=na_color, marker=marker, edgecolors=marker_edge_color, alpha=alpha
+        alpha=alpha,
+        color=na_color,
+        marker=marker,
+        edgecolors=marker_edge_color,
+        zorder=marker_zorder,
+        marker_size_scale_factor=marker_size_scale_factor,
+        legend_size_scale_factor=legend_size_scale_factor,
+        facecolors=marker_face_color,
+        linewidths=marker_linewidths,
     )
 
     if hue_key is None:

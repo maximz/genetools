@@ -83,7 +83,7 @@ def test_scatterplot_continuous(adata):
 
 @snapshot_image
 def test_scatterplot_no_hue(adata):
-    """Test scatterplot with no hue hue."""
+    """Test scatterplot with no hue, but many HueValueStyle defaults."""
     fig, _ = plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
@@ -92,6 +92,11 @@ def test_scatterplot_no_hue(adata):
         marker_size=15,
         alpha=0.8,
         marker=".",
+        marker_zorder=1,
+        marker_size_scale_factor=5.0,
+        legend_size_scale_factor=1.0,
+        marker_face_color=None,
+        marker_linewidths=2.0,
         legend_title="Cluster",
         label_key="louvain",
         remove_x_ticks=True,
