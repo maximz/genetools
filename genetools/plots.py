@@ -558,7 +558,11 @@ def stacked_bar_plot(
 
 
 def wrap_tick_labels(
-    ax: matplotlib.axes.Axes, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20
+    ax: matplotlib.axes.Axes,
+    wrap_x_axis=True,
+    wrap_y_axis=True,
+    wrap_amount=20,
+    break_characters=["/"],
 ) -> matplotlib.axes.Axes:
     """Add text wrapping to tick labels on x and/or y axes on any plot.
 
@@ -572,6 +576,8 @@ def wrap_tick_labels(
     :type wrap_y_axis: bool, optional
     :param wrap_amount: length of each line of text, defaults to 20
     :type wrap_amount: int, optional
+    :param break_characters: characters at which to encourage to breaking text into lines, defaults to ['/']. set to None or [] to disable.
+    :type break_characters: list, optional
     :return: plot with modified tick labels
     :rtype: matplotlib.axes.Axes
     """
@@ -584,7 +590,15 @@ def wrap_tick_labels(
 
     def wrap_labels(labels):
         for label in labels:
-            label.set_text("\n".join(textwrap.wrap(label.get_text(), wrap_amount)))
+            original_text = label.get_text()
+            if break_characters is not None:
+                # encourage breaking at this character. e.g. convert "/" to "/ " to encourage line break there.
+                for break_character in break_characters:
+                    break_character_stripped = break_character.strip()
+                    original_text = original_text.replace(
+                        break_character_stripped, f"{break_character_stripped} "
+                    )
+            label.set_text("\n".join(textwrap.wrap(original_text, wrap_amount)))
         return labels
 
     if wrap_x_axis:

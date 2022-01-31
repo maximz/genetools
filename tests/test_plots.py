@@ -210,8 +210,8 @@ def test_wrap_axis_labels():
         + [{"cluster": "very long cluster name 1", "expanded": "Expanded"}] * 20
         + [{"cluster": "very long cluster name 2", "expanded": "Not expanded"}] * 50
         + [{"cluster": "very long cluster name 2", "expanded": "Expanded"}] * 5
-        + [{"cluster": "very long cluster name 3", "expanded": "Not expanded"}] * 15
-        + [{"cluster": "very long cluster name 3", "expanded": "Expanded"}] * 15
+        + [{"cluster": "very/long/cluster/name/3", "expanded": "Not expanded"}] * 15
+        + [{"cluster": "very/long/cluster/name/3", "expanded": "Expanded"}] * 15
     )
     fig, ax = plots.stacked_bar_plot(
         df,
