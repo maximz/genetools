@@ -43,7 +43,7 @@ snapshot_image = pytest.mark.mpl_image_compare(savefig_kwargs=plots._savefig_def
 @snapshot_image
 def test_scatterplot_discrete(adata):
     """Test scatterplot with discrete hue."""
-    fig, _ = plots.scatterplot(
+    fig, ax = plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -52,9 +52,16 @@ def test_scatterplot_discrete(adata):
         alpha=0.8,
         marker=".",
         legend_title="Cluster",
-        label_key="louvain",
         remove_x_ticks=True,
         remove_y_ticks=True,
+    )
+    # Add cluster labels
+    plots.superimpose_group_labels(
+        ax,
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
+        label_key="louvain",
     )
     return fig
 
@@ -64,7 +71,7 @@ def test_scatterplot_continuous(adata):
     """Test scatterplot with continouous hue."""
     # also test supplying our own axes
     fig, ax = plt.subplots()
-    fig, _ = plots.scatterplot(
+    plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -76,6 +83,13 @@ def test_scatterplot_continuous(adata):
         marker=".",
         legend_title="Cluster",
         equal_aspect_ratio=True,
+    )
+    # Add cluster labels
+    plots.superimpose_group_labels(
+        ax,
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
         label_key="louvain",
     )
     return fig
@@ -84,7 +98,7 @@ def test_scatterplot_continuous(adata):
 @snapshot_image
 def test_scatterplot_no_hue(adata):
     """Test scatterplot with no hue, but many HueValueStyle defaults."""
-    fig, _ = plots.scatterplot(
+    fig, ax = plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -98,9 +112,19 @@ def test_scatterplot_no_hue(adata):
         marker_face_color=None,
         marker_linewidths=2.0,
         legend_title="Cluster",
-        label_key="louvain",
         remove_x_ticks=True,
         remove_y_ticks=True,
+    )
+    # Add cluster labels
+    plots.superimpose_group_labels(
+        ax,
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
+        label_key="louvain",
+        label_alpha=1.0,
+        label_color="blue",
+        label_size=30,
     )
     return fig
 

@@ -65,10 +65,10 @@ def savefig(fig: matplotlib.figure.Figure, *args, **kwargs):
 
 
 def scatterplot(
-    data,
-    x_axis_key,
-    y_axis_key,
-    hue_key=None,
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    hue_key: str = None,
     continuous_hue=False,
     continuous_cmap="viridis",
     discrete_palette: Union[
@@ -87,17 +87,12 @@ def scatterplot(
     marker_face_color: str = None,
     marker_linewidths: float = None,
     enable_legend=True,
-    legend_hues=None,
-    legend_title=None,
+    legend_hues: List[str] = None,
+    legend_title: str = None,
     sort_legend_hues=True,
     autoscale=True,
     equal_aspect_ratio=False,
     plotnonfinite=False,
-    label_key=None,
-    label_z_order=100,
-    label_color="k",
-    label_alpha=0.8,
-    label_size=15,
     remove_x_ticks=False,
     remove_y_ticks=False,
     tight_layout=True,
@@ -174,16 +169,6 @@ def scatterplot(
     :type equal_aspect_ratio: bool, optional
     :param plotnonfinite: For continuous hues, whether to plot points with inf or nan value, defaults to False
     :type plotnonfinite: bool, optional
-    :param label_key: Optional column name specifying group text labels to superimpose on plot, defaults to None
-    :type label_key: str, optional
-    :param label_z_order: Z-index for superimposed group text labels, defaults to 100
-    :type label_z_order: int, optional
-    :param label_color: Color for superimposed group text labels, defaults to "k"
-    :type label_color: str, optional
-    :param label_alpha: Opacity for superimposed group text labels, defaults to 0.8
-    :type label_alpha: float, optional
-    :param label_size: Text size of superimposed group labels, defaults to 15
-    :type label_size: int, optional
     :param remove_x_ticks: Remove X axis tick marks and labels, defaults to False
     :type remove_x_ticks: bool, optional
     :param remove_y_ticks: Remove Y axis tick marks and labels, defaults to False
@@ -355,23 +340,6 @@ def scatterplot(
             leg.set_title(title=legend_title, prop={"weight": "bold", "size": "medium"})
             # align legend title left
             leg._legend_box.align = "left"
-
-    # add cluster labels
-    if label_key is not None:
-        for label, grp in data.groupby(label_key, observed=True):
-            ax.annotate(
-                f"{label}",
-                grp[[x_axis_key, y_axis_key]].mean().values,  # mean of x and y
-                horizontalalignment="center",
-                verticalalignment="center_baseline",
-                size=label_size,
-                weight="bold",
-                alpha=label_alpha,
-                color=label_color,
-                zorder=label_z_order,
-                # set background color https://stackoverflow.com/a/23698794/130164
-                bbox={"facecolor": "white", "alpha": 0.5, "edgecolor": "white"},
-            )
 
     if autoscale:
         # automatic zoom in
@@ -629,6 +597,57 @@ def wrap_tick_labels(
         ax.set_yticks(ax.get_yticks())
         ax.set_yticklabels(wrap_labels(ax.get_yticklabels()))
 
+    return ax
+
+
+def superimpose_group_labels(
+    ax: matplotlib.axes.Axes,
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    label_key: str,
+    label_z_order=100,
+    label_color="k",
+    label_alpha=0.8,
+    label_size=15,
+) -> matplotlib.axes.Axes:
+    """Add group (cluster) labels to existing plot.
+
+    :param ax: matplotlib Axes for existing plot
+    :type ax: matplotlib.axes.Axes
+    :param data: [description]
+    :type data: pd.DataFrame
+    :param x_axis_key: Column name to plot on X axis
+    :type x_axis_key: str
+    :param y_axis_key: Column name to plot on Y axis
+    :type y_axis_key: str
+    :param label_key: Column name specifying categorical group text labels to superimpose on plot, defaults to None
+    :type label_key: str, optional
+    :param label_z_order: Z-index for superimposed group text labels, defaults to 100
+    :type label_z_order: int, optional
+    :param label_color: Color for superimposed group text labels, defaults to "k"
+    :type label_color: str, optional
+    :param label_alpha: Opacity for superimposed group text labels, defaults to 0.8
+    :type label_alpha: float, optional
+    :param label_size: Text size of superimposed group labels, defaults to 15
+    :type label_size: int, optional
+    :return: matplotlib Axes with superimposed group labels
+    :rtype: matplotlib.axes.Axes
+    """
+    for label, grp in data.groupby(label_key, observed=True):
+        ax.annotate(
+            f"{label}",
+            grp[[x_axis_key, y_axis_key]].mean().values,  # mean of x and y
+            horizontalalignment="center",
+            verticalalignment="center_baseline",
+            size=label_size,
+            weight="bold",
+            alpha=label_alpha,
+            color=label_color,
+            zorder=label_z_order,
+            # set background color https://stackoverflow.com/a/23698794/130164
+            bbox={"facecolor": "white", "alpha": 0.5, "edgecolor": "white"},
+        )
     return ax
 
 
