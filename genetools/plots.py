@@ -698,7 +698,15 @@ def add_sample_size_to_labels(labels: list, data: pd.DataFrame, hue_key: str) ->
         sample_size = data[data[hue_key] == hue_value].shape[0]
         return f"{hue_value}\n($n={sample_size}$)"
 
-    return [_make_label(label.get_text()) for label in labels]
+    # Labels start as strings
+    # Convert labels into the dtype of the column we will compare them against
+    # E.g. if the labels represent numerical categories, we cast to a numerical type before comparison
+    labels_cast_to_correct_dtype = pd.Series(
+        [label.get_text() for label in labels]
+    ).astype(data[hue_key].dtype)
+
+    # Make new labels
+    return [_make_label(label) for label in labels_cast_to_correct_dtype]
 
 
 def add_sample_size_to_legend(

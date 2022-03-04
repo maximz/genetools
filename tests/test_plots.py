@@ -273,6 +273,56 @@ def test_add_sample_size_to_labels(categorical_df):
 
 
 @snapshot_image
+def test_add_sample_size_to_numerical_labels(categorical_df):
+    # make sure we can add sample size to numerical labels
+    fig, ax = plt.subplots()
+    # make these discrete numerical categories
+    categorical_df["distance_categorical"] = (
+        categorical_df["distance"].apply(int).astype(int)
+    )
+    # plot a range of values for each numerical category
+    sns.boxplot(data=categorical_df, x="distance_categorical", y="distance", ax=ax)
+
+    # Add sample size to labels
+    ax.set_xticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_xticklabels(),
+            data=categorical_df,
+            hue_key="distance_categorical",
+        )
+    )
+    assert (
+        "\n($n=0$)" not in ax.get_xticklabels()[0].get_text()
+    ), "could not find sample sizes for numerical categories"
+
+    return fig
+
+
+@snapshot_image
+def test_add_sample_size_to_boolean_labels(categorical_df):
+    # make sure we can add sample size to numerical labels
+    fig, ax = plt.subplots()
+    # make these discrete boolean categories
+    categorical_df["disease type boolean"] = categorical_df["disease type"] == "Healthy"
+    # plot a range of values for each numerical category
+    sns.boxplot(data=categorical_df, x="disease type boolean", y="distance", ax=ax)
+
+    # Add sample size to labels
+    ax.set_xticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_xticklabels(),
+            data=categorical_df,
+            hue_key="disease type boolean",
+        )
+    )
+    assert (
+        "\n($n=0$)" not in ax.get_xticklabels()[0].get_text()
+    ), "could not find sample sizes for boolean categories"
+
+    return fig
+
+
+@snapshot_image
 def test_wrap_labels_overrides_any_linebreaks_in_labels(categorical_df):
     fig, ax = plt.subplots()
     sns.boxplot(data=categorical_df, y="distance", x="disease type", ax=ax)
