@@ -45,6 +45,7 @@ def rank_normalize(values):
 
 def normalize_rows(df):
     """Make rows sum to 1.
+    If a row is all zeroes, this will return NaNs for the row entries, since there is no way to make the row sum to 1.
 
     :param df: dataframe
     :type df: pandas.DataFrame
@@ -56,6 +57,7 @@ def normalize_rows(df):
 
 def normalize_columns(df):
     """Make columns sum to 1.
+    If a column is all zeroes, this will return NaNs for the column entries, since there is no way to make the column sum to 1.
 
     :param df: dataframe
     :type df: pandas.DataFrame
