@@ -28,7 +28,7 @@ jobs:
       - name: Get Python version
         run: python --version
       - name: Cache pip
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           # This path is specific to Ubuntu
           path: ~/.cache/pip
@@ -38,7 +38,7 @@ jobs:
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
       - name: Cache precommit
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           path: ~/.cache/pre-commit
           # Look to see if there is a cache hit for the corresponding requirements file
