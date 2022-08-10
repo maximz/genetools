@@ -205,3 +205,119 @@ def make_slurm_command(
     return "sbatch {options} {variables} {script};".format(
         options=options_string, variables=variable_string, script=script_string
     )
+
+
+def _masked_vector_fill_for_argmin_argmax_output(
+    masked_arr: np.ma.MaskedArray, output, axis=None
+):
+    # if axis None, we will have scalar output from argmin/argmax
+    if np.isscalar(output):
+        return output if masked_arr.any(axis=axis) else np.nan
+
+    # for rows/columns that are all masked (all nan), argmin will return 0. that's incorrect behavior.
+    # set entries for all-nan rows or columns to NaN
+    # first, cast to float so we can later set some entries to np.nan, which is a float
+    output = output.astype(float)
+    output[~masked_arr.any(axis=axis).filled(False)] = np.nan
+
+    return output
+
+
+def masked_argmin(masked_arr: np.ma.MaskedArray, axis=None):
+    """
+    argmin on masked array. return nan for row/column (depending on axis setting) of all nans
+    """
+    # run standard argmin
+    argmin_output = masked_arr.argmin(
+        fill_value=np.ma.minimum_fill_value(masked_arr), axis=axis
+    )
+
+    return _masked_vector_fill_for_argmin_argmax_output(
+        masked_arr, argmin_output, axis=axis
+    )
+
+
+def masked_argmax(masked_arr: np.ma.MaskedArray, axis=None):
+    """
+    argmax on masked array. return nan for row/column (depending on axis setting) of all nans
+    """
+    # run standard argmax
+    argmax_output = masked_arr.argmax(
+        fill_value=np.ma.maximum_fill_value(masked_arr), axis=axis
+    )
+
+    return _masked_vector_fill_for_argmin_argmax_output(
+        masked_arr, argmax_output, axis=axis
+    )
+
+
+def weighted_mode(arr, weights):
+    """
+    Get weighted mode (most common value) in array.
+    Faster than sklearn.utils.extmath.weighted_mode but does not support axis vectorization.
+    """
+    return (
+        pd.DataFrame({"key": arr, "value": weights})
+        .groupby("key", observed=True, sort=False)["value"]
+        .sum()
+        .idxmax()
+    )
+
+
+def strings_to_character_arrays(strs, validate_equal_lengths=True):
+    """Create character matrix by "viewing" strings as 1-character string arrays, then reshaping"""
+    char_matrix = np.array(strs)
+    char_matrix = (
+        char_matrix.astype("bytes").view("S1").reshape((char_matrix.shape[0], -1))
+    )
+
+    if validate_equal_lengths and b"" in char_matrix:
+        # Note: this won't trip up on spaces in the string, because those are " " and ASCII code 32, not "" and int code 0.
+        raise ValueError("Input strings must be of equal lengths.")
+
+    return char_matrix
+
+
+def strings_to_numeric_vectors(strs, validate_equal_lengths=True):
+    """Convert strings to numeric vectors (one entry per character)"""
+    numeric_arr = strings_to_character_arrays(
+        strs, validate_equal_lengths=validate_equal_lengths
+    ).view(np.uint8)
+
+    if 0 in numeric_arr:
+        # Replace blanks (0s -- from \x00) with np.nan. Cast to float first to support np.nan
+        numeric_arr = numeric_arr.astype(float)
+        np.place(numeric_arr, numeric_arr == 0.0, np.nan)
+
+    return numeric_arr
+
+
+def numeric_vectors_to_character_arrays(arr):
+    """Reverse operation of strings_to_numeric_vectors"""
+    return np.array(arr, dtype=np.uint8).view("c")
+
+
+def make_consensus_vector(matrix, frequencies):
+    """
+    Get weighted mode for each position across a set of equal-length vectors.
+    """
+    # weighted mode at each position -> centroid
+    # apply function to every column vector
+    consensus_elements = np.apply_along_axis(
+        lambda col: weighted_mode(col, frequencies), 0, matrix
+    )
+    return consensus_elements
+
+
+def make_consensus_sequence(sequences, frequencies):
+    """
+    Get weighted mode for each character across a set of equal-length input strings.
+    """
+
+    char_matrix = strings_to_character_arrays(sequences, validate_equal_lengths=True)
+
+    # weighted mode for each character
+    consensus_elements = make_consensus_vector(char_matrix, frequencies)
+
+    # assemble consensus string from individual characters
+    return "".join(consensus_elements.astype(str))
