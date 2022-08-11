@@ -72,11 +72,11 @@ test-without-figures:
 
 ## regenerate baseline figures
 regen-snapshot-figures: build-docker-test-image
-	docker run --rm -it -v $$(pwd):/src genetools-test pytest --mpl-generate-path=tests/baseline;
+	docker run --rm -it -v $$(pwd):/src genetools-test pytest --mpl-generate-path=tests/baseline --snapshot-update;
 
 ## regenerate saved test data (and baseline figures)
 regen-test-data: build-docker-test-image
-	docker run --rm -it -v $$(pwd):/src genetools-test pytest --mpl-generate-path=tests/baseline --regenerate-anndata;
+	docker run --rm -it -v $$(pwd):/src genetools-test pytest --mpl-generate-path=tests/baseline --snapshot-update --regenerate-anndata;
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source genetools -m pytest

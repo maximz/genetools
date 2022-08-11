@@ -257,10 +257,17 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels():
     return fig
 
 
-def test_pdf_deterministic_output(tmp_path):
+def test_pdf_deterministic_output(tmp_path, snapshot):
     # Can't use snapshot_image here because pytest-mpl doesn't support PDF
-    # So we are doing our own snapshot test md5 checksum here
+    # So we are doing our own snapshot test md5 checksum here.
+    #
+    # Unlike pytest-mpl, which allows minute differences in the resulting image,
+    # the MD5 checksum relies on exact output from matplotlib, which is not guaranteed to be stable.
+    # The expected MD5 checksum will change based on matplotlib version unfortunately.
+    # We use syrupy to store the expected MD5 checksum. Regenerate with pytest --snapshot-update
+    #
     # This also allows us to test genetools.plots.savefig directly.
+    #
 
     fname = tmp_path / "test_pdf_determinstic_output.pdf"
 
@@ -277,12 +284,10 @@ def test_pdf_deterministic_output(tmp_path):
         with open(fname, "rb") as f:
             return hashlib.md5(f.read()).hexdigest()
 
-    # A hacky snapshot test: put expected md5sum here
-    expected_md5 = "4fae9ebe9cb8f837aed495fee12ca179"
     observed_md5 = get_md5(fname)
     assert (
-        expected_md5 == observed_md5
-    ), f"{fname} md5sum mismatch: got {observed_md5}, expected {expected_md5}"
+        observed_md5 == snapshot
+    ), f"{fname} md5sum mismatch: got {observed_md5}, expected {snapshot}"
 
 
 @snapshot_image
