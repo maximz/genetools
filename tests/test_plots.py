@@ -92,6 +92,7 @@ def test_scatterplot_continuous(adata):
         y_axis_key="umap_2",
         label_key="louvain",
     )
+    plt.title("Scatterplot supports both discrete and continuous hues.")
     return fig
 
 

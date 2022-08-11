@@ -284,6 +284,10 @@ def scatterplot(
             if legend_title is not None:
                 colorbar_ax.set_title(legend_title)
 
+            # set global "current axes" back to main axes,
+            # so that any calls like plt.title target main ax rather than inset colorbar_ax
+            plt.sca(ax)
+
         else:
             # Create legend, and add any missing colors
             legend_handles = []
