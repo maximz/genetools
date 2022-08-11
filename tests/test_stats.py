@@ -50,8 +50,7 @@ def test_normalize_cols():
 
 
 def test_self_coclustering():
-    """Coclustering sanity check: dataset against itself should always yield 100%
-    """
+    """Coclustering sanity check: dataset against itself should always yield 100%"""
     cluster_ids = [1, 1, 2, 2]
     # 6 potential relationships in each dataset: 1-2, 1-3, 1-4, 2-3, 2-4, 3-4
     # Actual coclustering in each dataset: 1-2, 3-4

@@ -49,6 +49,8 @@ jobs:
           python -m pip install --upgrade pip wheel 'setuptools<58'
           pip install -r requirements_dev.txt
           pip install -U codecov
+      - name: Print out pip freeze
+        run: pip freeze
       - name: Lint
         run: |
             pre-commit install
@@ -87,14 +89,16 @@ jobs:
         run: echo "$IS_PR_TARGETING_MASTER" "$MASTER_PUSH"
       - name: Run tests
         # use temporary directory cleaned up after every job
-        run: pytest --basetemp={runner.temp} --cov=./ --cov-report xml --mpl --mpl-results-path=tests/results
+        run: pytest --basetemp=${{ runner.temp }} --cov=./ --cov-report xml --mpl --mpl-results-path=tests/results
         env:
           MPLBACKEND: Agg
       - name: Upload pytest test result artifacts on failure
         uses: actions/upload-artifact@v2
         with:
           name: pytest-results-${{ matrix.python-version }}
-          path: tests/results
+          path: |
+            tests/results
+            ${{ runner.temp }}/test*current
         if: ${{ failure() }}
       - name: Upload coverage on success
         uses: codecov/codecov-action@v1
