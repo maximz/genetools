@@ -431,12 +431,15 @@ def stacked_bar_plot(
     if value_key is None:
         # calculate frequency ourselves
         value_key = "frequency"
-        data = (
-            data.groupby(index_key)[hue_key]
-            .value_counts()
-            .rename(value_key)
-            .reset_index()
-        )
+        data = data.groupby(index_key)[hue_key].value_counts().rename(value_key)
+
+        # If categoricals, pandas < 1.5 loses hue_key column name: https://github.com/pandas-dev/pandas/issues/44324
+        # There may have also been a brief 1.4.x regression that caused a similar issue for non-categoricals: "Bug in DataFrameGroupBy.value_counts() where subset had no effect (GH46383)"
+        # So let's make sure the index names are set right.
+        # TODO: remove this once pandas 1.5 is widely used.
+        data.index.names = [index_key, hue_key]
+
+        data = data.reset_index()
 
     plot_df = data[[index_key, value_key, hue_key]].copy()
 
