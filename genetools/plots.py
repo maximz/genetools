@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -280,7 +279,7 @@ def scatterplot(
                 borderpad=0,
             )
 
-            colorbar = fig.colorbar(scattered_object, cax=colorbar_ax)
+            fig.colorbar(scattered_object, cax=colorbar_ax)
             if legend_title is not None:
                 colorbar_ax.set_title(legend_title)
 
@@ -450,7 +449,7 @@ def stacked_bar_plot(
 
     if normalize:
         # Normalize values to sum to 1 per row
-        plot_df[value_key] = plot_df.groupby(index_key, sort=False)[value_key].apply(
+        plot_df[value_key] = plot_df.groupby(index_key)[value_key].transform(
             lambda g: g / g.sum()
         )
 
@@ -465,7 +464,7 @@ def stacked_bar_plot(
     # Accumulate value with every subsequent box/hue as we go across each index/row
     # These will become row-level "left offsets" for each hue
     cum_value_key = value_key + "_cumulative_value"
-    plot_df[cum_value_key] = plot_df.groupby(index_key, sort=False)[value_key].cumsum()
+    plot_df[cum_value_key] = plot_df.groupby(index_key)[value_key].cumsum()
 
     # create colors
     if palette is None:

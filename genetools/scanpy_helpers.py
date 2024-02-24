@@ -2,6 +2,7 @@
 
 from . import stats
 
+
 # TODO: enable speeding this up by using highly variable genes only?
 def find_all_markers(
     adata,
@@ -32,8 +33,6 @@ def find_all_markers(
     :rtype: pandas.DataFrame
     """
 
-    import scipy
-    import numpy as np
     import pandas as pd
     import scanpy as sc
 

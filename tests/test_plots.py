@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
 import hashlib
+import packaging.version
 
 from genetools import plots
 from genetools.palette import HueValueStyle
@@ -38,6 +39,38 @@ def rng():
 
 # Define our own decorator for snapshot testing.
 snapshot_image = pytest.mark.mpl_image_compare(savefig_kwargs=plots._savefig_defaults)
+
+
+def _boxplot_extra_kwargs_for_new_seaborn(categorical_var: str) -> dict:
+    """Seaborn v0.13 changed sns.boxplot behavior"""
+    common_params = {
+        # For some reason, seaborn v0.13 boxplots are now affected by mpl.rcParams which have:
+        # "boxplot.whiskerprops.linestyle": "--" (dashed)
+        # "boxplot.flierprops.marker": "+"
+        # and more.
+        # We can investigate rcParams more closely with this code:
+        # import logging
+        # logger = logging.getLogger(__name__)
+        # import matplotlib
+        # d = {k: v for k, v in matplotlib.rcParams.items() if k.startswith("boxplot")}
+        # logger.info(d)
+        # Let's apply those rcParams as consistent styles for our <v0.13 and >=v0.13 tests:
+        "whiskerprops": {"linestyle": "solid"},
+        "flierprops": {
+            "marker": "+",
+            "markeredgecolor": "k",
+            "markeredgewidth": 1.0,
+            "markerfacecolor": "auto",
+            "markersize": 6.0,
+        },
+    }
+    if packaging.version.parse(sns.__version__) >= packaging.version.parse("0.13.0"):
+        # Boxplot hue and legend API change in seaborn 0.13+
+        common_params |= dict(
+            hue=categorical_var,
+            legend=False,
+        )
+    return common_params
 
 
 @snapshot_image
@@ -260,7 +293,13 @@ def categorical_df(rng):
 @snapshot_image
 def test_add_sample_size_to_labels(categorical_df):
     fig, ax = plt.subplots()
-    sns.boxplot(data=categorical_df, x="distance", y="disease type", ax=ax)
+    sns.boxplot(
+        data=categorical_df,
+        x="distance",
+        y="disease type",
+        ax=ax,
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="disease type"),
+    )
 
     # Add sample size to labels
     ax.set_yticklabels(
@@ -282,7 +321,14 @@ def test_add_sample_size_to_numerical_labels(categorical_df):
         categorical_df["distance"].apply(int).astype(int)
     )
     # plot a range of values for each numerical category
-    sns.boxplot(data=categorical_df, x="distance_categorical", y="distance", ax=ax)
+    sns.boxplot(
+        data=categorical_df,
+        x="distance_categorical",
+        y="distance",
+        ax=ax,
+        palette=sns.color_palette(),
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="distance_categorical"),
+    )
 
     # Add sample size to labels
     ax.set_xticklabels(
@@ -306,7 +352,13 @@ def test_add_sample_size_to_boolean_labels(categorical_df):
     # make these discrete boolean categories
     categorical_df["disease type boolean"] = categorical_df["disease type"] == "Healthy"
     # plot a range of values for each numerical category
-    sns.boxplot(data=categorical_df, x="disease type boolean", y="distance", ax=ax)
+    sns.boxplot(
+        data=categorical_df,
+        x="disease type boolean",
+        y="distance",
+        ax=ax,
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="disease type boolean"),
+    )
 
     # Add sample size to labels
     ax.set_xticklabels(
@@ -326,7 +378,13 @@ def test_add_sample_size_to_boolean_labels(categorical_df):
 @snapshot_image
 def test_wrap_labels_overrides_any_linebreaks_in_labels(categorical_df):
     fig, ax = plt.subplots()
-    sns.boxplot(data=categorical_df, y="distance", x="disease type", ax=ax)
+    sns.boxplot(
+        data=categorical_df,
+        y="distance",
+        x="disease type",
+        ax=ax,
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="disease type"),
+    )
 
     # Add sample size to labels
     ax.set_xticklabels(
@@ -374,6 +432,8 @@ def test_add_sample_size_to_legend(categorical_df):
     return fig
 
 
+# Marking as a manual snapshot test so it is skipped when not running in Docker or in Github Actions (controlled by --run-snapshots pytest flag)
+@pytest.mark.snapshot_custom
 def test_pdf_deterministic_output(tmp_path, snapshot):
     # Can't use snapshot_image here because pytest-mpl doesn't support PDF
     # So we are doing our own snapshot test md5 checksum here.

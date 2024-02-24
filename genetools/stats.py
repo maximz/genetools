@@ -167,7 +167,8 @@ def _coclustering_slow(cluster_ids_1, cluster_ids_2):
         # extract non-diagonal and true
         out = np.array(
             np.where(
-                ~np.eye(cells_by_cells.shape[0], dtype=bool) & (cells_by_cells == True)
+                # Ignore Ruff E712 that asks us to change to "cells_by_cells is True"
+                ~np.eye(cells_by_cells.shape[0], dtype=bool) & (cells_by_cells == True)  # noqa: E712
             )
         ).T
         assert out.shape[1] == 2, "each row should have two cell IDs"

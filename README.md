@@ -80,6 +80,7 @@ make regen-test-data
 
 # run tests locally
 # this is done in a debian-based docker image to ensure image style matches what Github Actions CI will produce
+# failing image snapshot tests are recorded in tests/results/
 make build-docker-test-image # whenever requirements_dev.txt change
 make test
 
@@ -90,6 +91,7 @@ make regen-snapshot-figures
 make regen-test-data
 
 # run tests locally without docker, therefore omitting the snapshot tests
+# (the @snapshot_image tests are still executed but the images are not compared. the @pytest.mark.snapshot_custom are skipped altogether.)
 make test-without-figures
 
 # docs
