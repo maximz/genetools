@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
 import hashlib
+import packaging.version
 
 from genetools import plots
 from genetools.palette import HueValueStyle
@@ -29,14 +30,53 @@ random_seed = 12345
 np.random.seed(random_seed)
 random.seed(random_seed)
 
+
+@pytest.fixture
+def rng():
+    """Return a random number generator."""
+    return np.random.default_rng(random_seed)
+
+
 # Define our own decorator for snapshot testing.
 snapshot_image = pytest.mark.mpl_image_compare(savefig_kwargs=plots._savefig_defaults)
+
+
+def _boxplot_extra_kwargs_for_new_seaborn(categorical_var: str) -> dict:
+    """Seaborn v0.13 changed sns.boxplot behavior"""
+    common_params = {
+        # For some reason, seaborn v0.13 boxplots are now affected by mpl.rcParams which have:
+        # "boxplot.whiskerprops.linestyle": "--" (dashed)
+        # "boxplot.flierprops.marker": "+"
+        # and more.
+        # We can investigate rcParams more closely with this code:
+        # import logging
+        # logger = logging.getLogger(__name__)
+        # import matplotlib
+        # d = {k: v for k, v in matplotlib.rcParams.items() if k.startswith("boxplot")}
+        # logger.info(d)
+        # Let's apply those rcParams as consistent styles for our <v0.13 and >=v0.13 tests:
+        "whiskerprops": {"linestyle": "solid"},
+        "flierprops": {
+            "marker": "+",
+            "markeredgecolor": "k",
+            "markeredgewidth": 1.0,
+            "markerfacecolor": "auto",
+            "markersize": 6.0,
+        },
+    }
+    if packaging.version.parse(sns.__version__) >= packaging.version.parse("0.13.0"):
+        # Boxplot hue and legend API change in seaborn 0.13+
+        common_params |= dict(
+            hue=categorical_var,
+            legend=False,
+        )
+    return common_params
 
 
 @snapshot_image
 def test_scatterplot_discrete(adata):
     """Test scatterplot with discrete hue."""
-    fig, _ = plots.scatterplot(
+    fig, ax = plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -45,9 +85,16 @@ def test_scatterplot_discrete(adata):
         alpha=0.8,
         marker=".",
         legend_title="Cluster",
-        label_key="louvain",
         remove_x_ticks=True,
         remove_y_ticks=True,
+    )
+    # Add cluster labels
+    plots.superimpose_group_labels(
+        ax,
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
+        label_key="louvain",
     )
     return fig
 
@@ -57,7 +104,7 @@ def test_scatterplot_continuous(adata):
     """Test scatterplot with continouous hue."""
     # also test supplying our own axes
     fig, ax = plt.subplots()
-    fig, _ = plots.scatterplot(
+    plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -69,7 +116,49 @@ def test_scatterplot_continuous(adata):
         marker=".",
         legend_title="Cluster",
         equal_aspect_ratio=True,
+    )
+    # Add cluster labels
+    plots.superimpose_group_labels(
+        ax,
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
         label_key="louvain",
+    )
+    plt.title("Scatterplot supports both discrete and continuous hues.")
+    return fig
+
+
+@snapshot_image
+def test_scatterplot_no_hue(adata):
+    """Test scatterplot with no hue, but many HueValueStyle defaults."""
+    fig, ax = plots.scatterplot(
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
+        hue_key=None,
+        marker_size=15,
+        alpha=0.8,
+        marker=".",
+        marker_zorder=1,
+        marker_size_scale_factor=5.0,
+        legend_size_scale_factor=1.0,
+        marker_face_color=None,
+        marker_linewidths=2.0,
+        legend_title="Cluster",
+        remove_x_ticks=True,
+        remove_y_ticks=True,
+    )
+    # Add cluster labels
+    plots.superimpose_group_labels(
+        ax,
+        data=adata.obs,
+        x_axis_key="umap_1",
+        y_axis_key="umap_2",
+        label_key="louvain",
+        label_alpha=1.0,
+        label_color="blue",
+        label_size=30,
     )
     return fig
 
@@ -155,8 +244,8 @@ def test_wrap_axis_labels():
         + [{"cluster": "very long cluster name 1", "expanded": "Expanded"}] * 20
         + [{"cluster": "very long cluster name 2", "expanded": "Not expanded"}] * 50
         + [{"cluster": "very long cluster name 2", "expanded": "Expanded"}] * 5
-        + [{"cluster": "very long cluster name 3", "expanded": "Not expanded"}] * 15
-        + [{"cluster": "very long cluster name 3", "expanded": "Expanded"}] * 15
+        + [{"cluster": "very/long/cluster/name/3", "expanded": "Not expanded"}] * 15
+        + [{"cluster": "very/long/cluster/name/3", "expanded": "Expanded"}] * 15
     )
     fig, ax = plots.stacked_bar_plot(
         df,
@@ -183,27 +272,39 @@ def test_wrap_axis_labels():
     return fig
 
 
-@snapshot_image
-def test_add_sample_size_to_labels():
+@pytest.fixture
+def categorical_df(rng):
     # make more sick patients and have their distances be more dispersed
     n_healthy = 10
     n_sick = 20
     df = pd.DataFrame(
         {
             "distance": np.hstack(
-                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
+                [rng.standard_normal(n_healthy), rng.standard_normal(n_sick) * 3]
             ),
             "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
         }
     )
     df["distance"] += 10
+    df["x"] = rng.standard_normal(df.shape[0])
+    return df
+
+
+@snapshot_image
+def test_add_sample_size_to_labels(categorical_df):
     fig, ax = plt.subplots()
-    sns.boxplot(data=df, x="distance", y="disease type", ax=ax)
+    sns.boxplot(
+        data=categorical_df,
+        x="distance",
+        y="disease type",
+        ax=ax,
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="disease type"),
+    )
 
     # Add sample size to labels
     ax.set_yticklabels(
         plots.add_sample_size_to_labels(
-            labels=ax.get_yticklabels(), data=df, hue_key="disease type"
+            labels=ax.get_yticklabels(), data=categorical_df, hue_key="disease type"
         )
     )
     assert ax.get_yticklabels()[0].get_text() == "Healthy\n($n=10$)"
@@ -212,26 +313,83 @@ def test_add_sample_size_to_labels():
 
 
 @snapshot_image
-def test_wrap_labels_overrides_any_linebreaks_in_labels():
-    # make more sick patients and have their distances be more dispersed
-    n_healthy = 10
-    n_sick = 20
-    df = pd.DataFrame(
-        {
-            "distance": np.hstack(
-                [np.random.randn(n_healthy), np.random.randn(n_sick) * 3]
-            ),
-            "disease type": ["Healthy"] * n_healthy + ["SARS-CoV-2 Patient"] * n_sick,
-        }
-    )
-    df["distance"] += 10
+def test_add_sample_size_to_numerical_labels(categorical_df):
+    # make sure we can add sample size to numerical labels
     fig, ax = plt.subplots()
-    sns.boxplot(data=df, y="distance", x="disease type", ax=ax)
+    # make these discrete numerical categories
+    categorical_df["distance_categorical"] = (
+        categorical_df["distance"].apply(int).astype(int)
+    )
+    # plot a range of values for each numerical category
+    sns.boxplot(
+        data=categorical_df,
+        x="distance_categorical",
+        y="distance",
+        ax=ax,
+        palette=sns.color_palette(),
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="distance_categorical"),
+    )
 
     # Add sample size to labels
     ax.set_xticklabels(
         plots.add_sample_size_to_labels(
-            labels=ax.get_xticklabels(), data=df, hue_key="disease type"
+            labels=ax.get_xticklabels(),
+            data=categorical_df,
+            hue_key="distance_categorical",
+        )
+    )
+    assert (
+        "\n($n=0$)" not in ax.get_xticklabels()[0].get_text()
+    ), "could not find sample sizes for numerical categories"
+
+    return fig
+
+
+@snapshot_image
+def test_add_sample_size_to_boolean_labels(categorical_df):
+    # make sure we can add sample size to numerical labels
+    fig, ax = plt.subplots()
+    # make these discrete boolean categories
+    categorical_df["disease type boolean"] = categorical_df["disease type"] == "Healthy"
+    # plot a range of values for each numerical category
+    sns.boxplot(
+        data=categorical_df,
+        x="disease type boolean",
+        y="distance",
+        ax=ax,
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="disease type boolean"),
+    )
+
+    # Add sample size to labels
+    ax.set_xticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_xticklabels(),
+            data=categorical_df,
+            hue_key="disease type boolean",
+        )
+    )
+    assert (
+        "\n($n=0$)" not in ax.get_xticklabels()[0].get_text()
+    ), "could not find sample sizes for boolean categories"
+
+    return fig
+
+
+@snapshot_image
+def test_wrap_labels_overrides_any_linebreaks_in_labels(categorical_df):
+    fig, ax = plt.subplots()
+    sns.boxplot(
+        data=categorical_df,
+        y="distance",
+        x="disease type",
+        ax=ax,
+        **_boxplot_extra_kwargs_for_new_seaborn(categorical_var="disease type"),
+    )
+
+    # Add sample size to labels
+    ax.set_xticklabels(
+        plots.add_sample_size_to_labels(
+            labels=ax.get_xticklabels(), data=categorical_df, hue_key="disease type"
         )
     )
 
@@ -257,6 +415,25 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels():
     return fig
 
 
+@snapshot_image
+def test_add_sample_size_to_legend(categorical_df):
+    fig, ax = plots.scatterplot(
+        data=categorical_df,
+        x_axis_key="distance",
+        y_axis_key="disease type",
+        hue_key="disease type",
+    )
+
+    # Add sample size to legend
+    plots.add_sample_size_to_legend(ax=ax, data=categorical_df, hue_key="disease type")
+    assert ax.get_legend().get_texts()[0].get_text() == "Healthy ($n=10$)"
+    assert ax.get_legend().get_texts()[1].get_text() == "SARS-CoV-2 Patient ($n=20$)"
+
+    return fig
+
+
+# Marking as a manual snapshot test so it is skipped when not running in Docker or in Github Actions (controlled by --run-snapshots pytest flag)
+@pytest.mark.snapshot_custom
 def test_pdf_deterministic_output(tmp_path, snapshot):
     # Can't use snapshot_image here because pytest-mpl doesn't support PDF
     # So we are doing our own snapshot test md5 checksum here.
@@ -291,10 +468,10 @@ def test_pdf_deterministic_output(tmp_path, snapshot):
 
 
 @snapshot_image
-def test_palette_with_unfilled_shapes():
+def test_palette_with_unfilled_shapes(rng):
     df = pd.DataFrame()
-    df["x"] = np.random.randn(5)
-    df["y"] = np.random.randn(5)
+    df["x"] = rng.standard_normal(5)
+    df["y"] = rng.standard_normal(5)
     df["hue"] = "groupA"
     # HueValueStyle demo: unfilled shapes. Set facecolors to "none" and set edgecolors to desired color.
     palette = {

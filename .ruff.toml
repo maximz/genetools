@@ -1,0 +1,2 @@
+# In addition to the standard set of exclusions
+extend-exclude = ["docs"]

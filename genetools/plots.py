@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -65,10 +64,10 @@ def savefig(fig: matplotlib.figure.Figure, *args, **kwargs):
 
 
 def scatterplot(
-    data,
-    x_axis_key,
-    y_axis_key,
-    hue_key,
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    hue_key: str = None,
     continuous_hue=False,
     continuous_cmap="viridis",
     discrete_palette: Union[
@@ -77,22 +76,22 @@ def scatterplot(
     ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
     marker_size=25,
-    alpha=1.0,
+    alpha: float = 1.0,
     na_color="lightgray",
-    marker="o",
-    marker_edge_color="none",
+    marker: str = "o",
+    marker_edge_color: str = "none",
+    marker_zorder: int = 1,
+    marker_size_scale_factor: float = 1.0,
+    legend_size_scale_factor: float = 1.0,
+    marker_face_color: str = None,
+    marker_linewidths: float = None,
     enable_legend=True,
-    legend_hues=None,
-    legend_title=None,
+    legend_hues: List[str] = None,
+    legend_title: str = None,
     sort_legend_hues=True,
     autoscale=True,
     equal_aspect_ratio=False,
     plotnonfinite=False,
-    label_key=None,
-    label_z_order=100,
-    label_color="k",
-    label_alpha=0.8,
-    label_size=15,
     remove_x_ticks=False,
     remove_y_ticks=False,
     tight_layout=True,
@@ -101,17 +100,21 @@ def scatterplot(
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
-    For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
+    For discrete hues, pass ``continuous_hue = False`` and a dictionary of colors and/or HueValueStyle objects in ``discrete_palette``.
 
     Figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
     So you must use ``fig.savefig('filename', bbox_inches='tight')``.
     This is provided automatically by ``genetools.plots.savefig(fig, 'filename')``.
 
-    If using with scanpy, to get umap data from adata.obsm into adata.obs, try:
+    If using with scanpy, to join umap data from ``adata.obsm`` with other plot data in ``adata.obs``, try:
 
     .. code-block:: python
 
         data = adata.obs.assign(umap_1=adata.obsm["X_umap"][:, 0], umap_2=adata.obsm["X_umap"][:, 1])
+
+    If ``hue_key = None``, then all points will be colored by ``na_color``
+    and styled with parameters ``alpha``, ``marker``, ``marker_size``, ``zorder``, and ``marker_edge_color``.
+    The legend will be disabled.
 
     :param data: Input data, e.g. anndata.obs
     :type data: pandas.DataFrame
@@ -119,8 +122,8 @@ def scatterplot(
     :type x_axis_key: str
     :param y_axis_key: Column name to plot on Y axis
     :type y_axis_key: str
-    :param hue_key: Column name with hue groups that will be used to color points
-    :type hue_key: str
+    :param hue_key: Column name with hue groups that will be used to color points. defaults to None to color all points consistently.
+    :type hue_key: str, optional
     :param continuous_hue: Whether the hue column takes continuous or discrete/categorical values, defaults to False.
     :type continuous_hue: bool, optional
     :param continuous_cmap: Colormap to use for plotting continuous hue grouping variable, defaults to "viridis"
@@ -141,6 +144,16 @@ def scatterplot(
     :type marker: str, optional
     :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none" (no edge border drawn). Another common choice is "face", so the edge color matches the face color.
     :type marker_edge_color: str, optional
+    :param marker_zorder: Default marker z-order, unless overriden by a HueValueStyle, defaults to 1
+    :type marker_zorder: int, optional
+    :param marker_size_scale_factor: Default marker size scale factor, unless overriden by a HueValueStyle, defaults to 1.0
+    :type marker_size_scale_factor: float, optional
+    :param legend_size_scale_factor: Default legend size scale factor, unless overriden by a HueValueStyle, defaults to 1.0
+    :type legend_size_scale_factor: float, optional
+    :param marker_face_color: Default marker face color, unless overriden by a HueValueStyle, defaults to None (uses point color).
+    :type marker_face_color: str, optional
+    :param marker_linewidths: Default marker line widths, unless overriden by a HueValueStyle, defaults to None
+    :type marker_linewidths: float, optional
     :param enable_legend: Whether legend (or colorbar if continuous_hue) should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
     :type enable_legend: bool, optional
     :param legend_hues: Optionally override the list of hue values to include in legend, e.g. to add any hue values missing from the plotted subset of data; defaults to None
@@ -155,16 +168,6 @@ def scatterplot(
     :type equal_aspect_ratio: bool, optional
     :param plotnonfinite: For continuous hues, whether to plot points with inf or nan value, defaults to False
     :type plotnonfinite: bool, optional
-    :param label_key: Optional column name specifying group text labels to superimpose on plot, defaults to None
-    :type label_key: str, optional
-    :param label_z_order: Z-index for superimposed group text labels, defaults to 100
-    :type label_z_order: int, optional
-    :param label_color: Color for superimposed group text labels, defaults to "k"
-    :type label_color: str, optional
-    :param label_alpha: Opacity for superimposed group text labels, defaults to 0.8
-    :type label_alpha: float, optional
-    :param label_size: Text size of superimposed group labels, defaults to 15
-    :type label_size: int, optional
     :param remove_x_ticks: Remove X axis tick marks and labels, defaults to False
     :type remove_x_ticks: bool, optional
     :param remove_y_ticks: Remove Y axis tick marks and labels, defaults to False
@@ -189,10 +192,26 @@ def scatterplot(
     scattered_object = None
 
     default_style = HueValueStyle(
-        color=na_color, marker=marker, edgecolors=marker_edge_color, alpha=alpha
+        alpha=alpha,
+        color=na_color,
+        marker=marker,
+        edgecolors=marker_edge_color,
+        zorder=marker_zorder,
+        marker_size_scale_factor=marker_size_scale_factor,
+        legend_size_scale_factor=legend_size_scale_factor,
+        facecolors=marker_face_color,
+        linewidths=marker_linewidths,
     )
 
-    if continuous_hue:
+    if hue_key is None:
+        scattered_object = ax.scatter(
+            data[x_axis_key].values,
+            data[y_axis_key].values,
+            **default_style.render_scatter_props(marker_size=marker_size),
+            plotnonfinite=plotnonfinite,
+            **kwargs,
+        )
+    elif continuous_hue:
         # plot continuous variable with a colorbar
         scattered_object = ax.scatter(
             data[x_axis_key].values,
@@ -203,7 +222,6 @@ def scatterplot(
             plotnonfinite=plotnonfinite,
             **kwargs,
         )
-
     else:
         # plot discrete hue
         if legend_hues is None:
@@ -245,7 +263,7 @@ def scatterplot(
     if tight_layout:
         fig.tight_layout()
 
-    if enable_legend:
+    if enable_legend and hue_key is not None:
         if continuous_hue:
             # color bar
             # see also https://stackoverflow.com/a/44642014/130164
@@ -261,9 +279,13 @@ def scatterplot(
                 borderpad=0,
             )
 
-            colorbar = fig.colorbar(scattered_object, cax=colorbar_ax)
+            fig.colorbar(scattered_object, cax=colorbar_ax)
             if legend_title is not None:
                 colorbar_ax.set_title(legend_title)
+
+            # set global "current axes" back to main axes,
+            # so that any calls like plt.title target main ax rather than inset colorbar_ax
+            plt.sca(ax)
 
         else:
             # Create legend, and add any missing colors
@@ -321,23 +343,6 @@ def scatterplot(
             leg.set_title(title=legend_title, prop={"weight": "bold", "size": "medium"})
             # align legend title left
             leg._legend_box.align = "left"
-
-    # add cluster labels
-    if label_key is not None:
-        for label, grp in data.groupby(label_key, observed=True):
-            ax.annotate(
-                f"{label}",
-                grp[[x_axis_key, y_axis_key]].mean().values,  # mean of x and y
-                horizontalalignment="center",
-                verticalalignment="center_baseline",
-                size=label_size,
-                weight="bold",
-                alpha=label_alpha,
-                color=label_color,
-                zorder=label_z_order,
-                # set background color https://stackoverflow.com/a/23698794/130164
-                bbox={"facecolor": "white", "alpha": 0.5, "edgecolor": "white"},
-            )
 
     if autoscale:
         # automatic zoom in
@@ -425,12 +430,15 @@ def stacked_bar_plot(
     if value_key is None:
         # calculate frequency ourselves
         value_key = "frequency"
-        data = (
-            data.groupby(index_key)[hue_key]
-            .value_counts()
-            .rename(value_key)
-            .reset_index()
-        )
+        data = data.groupby(index_key)[hue_key].value_counts().rename(value_key)
+
+        # If categoricals, pandas < 1.5 loses hue_key column name: https://github.com/pandas-dev/pandas/issues/44324
+        # There may have also been a brief 1.4.x regression that caused a similar issue for non-categoricals: "Bug in DataFrameGroupBy.value_counts() where subset had no effect (GH46383)"
+        # So let's make sure the index names are set right.
+        # TODO: remove this once pandas 1.5 is widely used.
+        data.index.names = [index_key, hue_key]
+
+        data = data.reset_index()
 
     plot_df = data[[index_key, value_key, hue_key]].copy()
 
@@ -441,7 +449,7 @@ def stacked_bar_plot(
 
     if normalize:
         # Normalize values to sum to 1 per row
-        plot_df[value_key] = plot_df.groupby(index_key, sort=False)[value_key].apply(
+        plot_df[value_key] = plot_df.groupby(index_key)[value_key].transform(
             lambda g: g / g.sum()
         )
 
@@ -456,7 +464,7 @@ def stacked_bar_plot(
     # Accumulate value with every subsequent box/hue as we go across each index/row
     # These will become row-level "left offsets" for each hue
     cum_value_key = value_key + "_cumulative_value"
-    plot_df[cum_value_key] = plot_df.groupby(index_key, sort=False)[value_key].cumsum()
+    plot_df[cum_value_key] = plot_df.groupby(index_key)[value_key].cumsum()
 
     # create colors
     if palette is None:
@@ -556,7 +564,11 @@ def stacked_bar_plot(
 
 
 def wrap_tick_labels(
-    ax: matplotlib.axes.Axes, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20
+    ax: matplotlib.axes.Axes,
+    wrap_x_axis=True,
+    wrap_y_axis=True,
+    wrap_amount=20,
+    break_characters=["/"],
 ) -> matplotlib.axes.Axes:
     """Add text wrapping to tick labels on x and/or y axes on any plot.
 
@@ -570,6 +582,8 @@ def wrap_tick_labels(
     :type wrap_y_axis: bool, optional
     :param wrap_amount: length of each line of text, defaults to 20
     :type wrap_amount: int, optional
+    :param break_characters: characters at which to encourage to breaking text into lines, defaults to ['/']. set to None or [] to disable.
+    :type break_characters: list, optional
     :return: plot with modified tick labels
     :rtype: matplotlib.axes.Axes
     """
@@ -582,7 +596,15 @@ def wrap_tick_labels(
 
     def wrap_labels(labels):
         for label in labels:
-            label.set_text("\n".join(textwrap.wrap(label.get_text(), wrap_amount)))
+            original_text = label.get_text()
+            if break_characters is not None:
+                # encourage breaking at this character. e.g. convert "/" to "/ " to encourage line break there.
+                for break_character in break_characters:
+                    break_character_stripped = break_character.strip()
+                    original_text = original_text.replace(
+                        break_character_stripped, f"{break_character_stripped} "
+                    )
+            label.set_text("\n".join(textwrap.wrap(original_text, wrap_amount)))
         return labels
 
     if wrap_x_axis:
@@ -595,6 +617,57 @@ def wrap_tick_labels(
         ax.set_yticks(ax.get_yticks())
         ax.set_yticklabels(wrap_labels(ax.get_yticklabels()))
 
+    return ax
+
+
+def superimpose_group_labels(
+    ax: matplotlib.axes.Axes,
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    label_key: str,
+    label_z_order=100,
+    label_color="k",
+    label_alpha=0.8,
+    label_size=15,
+) -> matplotlib.axes.Axes:
+    """Add group (cluster) labels to existing plot.
+
+    :param ax: matplotlib Axes for existing plot
+    :type ax: matplotlib.axes.Axes
+    :param data: [description]
+    :type data: pd.DataFrame
+    :param x_axis_key: Column name to plot on X axis
+    :type x_axis_key: str
+    :param y_axis_key: Column name to plot on Y axis
+    :type y_axis_key: str
+    :param label_key: Column name specifying categorical group text labels to superimpose on plot, defaults to None
+    :type label_key: str, optional
+    :param label_z_order: Z-index for superimposed group text labels, defaults to 100
+    :type label_z_order: int, optional
+    :param label_color: Color for superimposed group text labels, defaults to "k"
+    :type label_color: str, optional
+    :param label_alpha: Opacity for superimposed group text labels, defaults to 0.8
+    :type label_alpha: float, optional
+    :param label_size: Text size of superimposed group labels, defaults to 15
+    :type label_size: int, optional
+    :return: matplotlib Axes with superimposed group labels
+    :rtype: matplotlib.axes.Axes
+    """
+    for label, grp in data.groupby(label_key, observed=True):
+        ax.annotate(
+            f"{label}",
+            grp[[x_axis_key, y_axis_key]].mean().values,  # mean of x and y
+            horizontalalignment="center",
+            verticalalignment="center_baseline",
+            size=label_size,
+            weight="bold",
+            alpha=label_alpha,
+            color=label_color,
+            zorder=label_z_order,
+            # set background color https://stackoverflow.com/a/23698794/130164
+            bbox={"facecolor": "white", "alpha": 0.5, "edgecolor": "white"},
+        )
     return ax
 
 
@@ -631,7 +704,59 @@ def add_sample_size_to_labels(labels: list, data: pd.DataFrame, hue_key: str) ->
         sample_size = data[data[hue_key] == hue_value].shape[0]
         return f"{hue_value}\n($n={sample_size}$)"
 
-    return [_make_label(label.get_text()) for label in labels]
+    # Labels start as strings
+    # Convert labels into the dtype of the column we will compare them against
+    # E.g. if the labels represent numerical categories, we cast to a numerical type before comparison
+    labels_cast_to_correct_dtype = pd.Series(
+        [label.get_text() for label in labels]
+    ).astype(data[hue_key].dtype)
+
+    # Make new labels
+    return [_make_label(label) for label in labels_cast_to_correct_dtype]
+
+
+def add_sample_size_to_legend(
+    ax: matplotlib.axes.Axes, data: pd.DataFrame, hue_key: str
+) -> matplotlib.axes.Axes:
+    """Add sample size to legend labels on any plot with categorical hues.
+
+    Sample size for each label is extracted from the ``hue_key`` column of dataframe ``data``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        fig, ax = genetools.plots.scatterplot(
+            data=df,
+            x_axis_key="x",
+            y_axis_key="y",
+            hue_key="Group"
+        )
+        genetools.plots.add_sample_size_to_legend(
+            ax=ax,
+            data=df,
+            hue_key="Group"
+        )
+
+    :param ax: matplotlib Axes for existing plot
+    :type ax: matplotlib.axes.Axes
+    :param data: dataset with categorical groups
+    :type data: pd.DataFrame
+    :param hue_key: column name specifying categorical groups in dataset ``data``
+    :type hue_key: str
+    :return: matplotlib Axes with modified legend labels with group sample sizes attached
+    :rtype: matplotlib.axes.Axes
+    """
+
+    def _make_label(hue_value):
+        sample_size = data[data[hue_key] == hue_value].shape[0]
+        return f"{hue_value} ($n={sample_size}$)"
+
+    legend = ax.get_legend()
+    for label in legend.get_texts():
+        label.set_text(_make_label(label.get_text()))
+
+    return ax
 
 
 ####

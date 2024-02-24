@@ -1,5 +1,5 @@
 # use debian-based python image to match Github Actions matplotlib outputs
-FROM python:3.8
+FROM python:3.9
 
 RUN mkdir /src
 WORKDIR /src

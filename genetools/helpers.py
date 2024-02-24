@@ -52,7 +52,7 @@ def merge_into_left(left, right, **kwargs):
         right_index=True,
         sort=False,
         validate="1:1",
-        **kwargs
+        **kwargs,
     )
     # TODO: asserts are stripped away when code is optimized; replace with if not, raise ValueError('message')
     assert df.shape[0] == df1.shape[0]
