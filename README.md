@@ -12,12 +12,12 @@
 <tr>
 <td>
 
-[![](tests/baseline/test_scatterplot_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_scatterplot_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_scatterplot_discrete)
 
 </td>
 <td>
 
-[![](tests/baseline/test_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_stacked_bar_plot)
 
 </td>
 </tr>
@@ -25,12 +25,12 @@
 <tr>
 <td>
 
-[![](tests/baseline/test_scatterplot_continuous.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_scatterplot_continuous.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_scatterplot_continuous)
 
 </td>
 <td>
 
-[![](tests/baseline/test_stacked_bar_plot_autocompute_frequencies.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_stacked_bar_plot_autocompute_frequencies.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_stacked_bar_plot_autocompute_frequencies)
 
 </td>
 </tr>
