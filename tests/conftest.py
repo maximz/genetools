@@ -6,6 +6,12 @@ import os
 import random
 import anndata
 import warnings
+import genetools
+import matplotlib
+# import seaborn as sns
+
+matplotlib.use("Agg")
+# sns.set(context='paper', style='white')
 
 if os.getenv("_PYTEST_RAISE", "0") != "0":
     # For debugging tests with pytest and vscode:
@@ -231,3 +237,12 @@ def _import_adata(adata):
     adata.uns = adata_uns.uns
 
     return adata
+
+
+######
+
+# Snapshot testing:
+# Define our own decorator for snapshot testing.
+snapshot_image = pytest.mark.mpl_image_compare(
+    savefig_kwargs=genetools.plots._savefig_defaults
+)

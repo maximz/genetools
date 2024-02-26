@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Tests for `genetools` plots.
+"""Tests for `genetools` genetools.plots.
 
 Keep in mind when writing plotting tests:
 - Use `@pytest.mark.mpl_image_compare` decorator to automatically do snapshot testing. See README.md for how to regenerate snapshots.
@@ -8,23 +8,25 @@ Keep in mind when writing plotting tests:
     - To generate figures in a consistent way with Github Actions CI, we now run tests locally in a Debian-based Docker image as well.
 - Some figures seem not to export right unless you save with tight bounding box (specifically legends outside figure are cut off):
     - `@pytest.mark.mpl_image_compare(savefig_kwargs={"bbox_inches": "tight"})`
+
+We defined our own decorator for snapshot testing: @snapshot_image
 """
 
 import pytest
 import numpy as np
 import pandas as pd
 import random
-import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
 import hashlib
 import packaging.version
+import scipy.stats
 
-from genetools import plots
+import genetools
 from genetools.palette import HueValueStyle
 
-matplotlib.use("Agg")
+from .conftest import snapshot_image
 
 random_seed = 12345
 np.random.seed(random_seed)
@@ -35,10 +37,6 @@ random.seed(random_seed)
 def rng():
     """Return a random number generator."""
     return np.random.default_rng(random_seed)
-
-
-# Define our own decorator for snapshot testing.
-snapshot_image = pytest.mark.mpl_image_compare(savefig_kwargs=plots._savefig_defaults)
 
 
 def _boxplot_extra_kwargs_for_new_seaborn(categorical_var: str) -> dict:
@@ -76,7 +74,7 @@ def _boxplot_extra_kwargs_for_new_seaborn(categorical_var: str) -> dict:
 @snapshot_image
 def test_scatterplot_discrete(adata):
     """Test scatterplot with discrete hue."""
-    fig, ax = plots.scatterplot(
+    fig, ax = genetools.plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -89,7 +87,7 @@ def test_scatterplot_discrete(adata):
         remove_y_ticks=True,
     )
     # Add cluster labels
-    plots.superimpose_group_labels(
+    genetools.plots.superimpose_group_labels(
         ax,
         data=adata.obs,
         x_axis_key="umap_1",
@@ -104,7 +102,7 @@ def test_scatterplot_continuous(adata):
     """Test scatterplot with continouous hue."""
     # also test supplying our own axes
     fig, ax = plt.subplots()
-    plots.scatterplot(
+    genetools.plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -118,7 +116,7 @@ def test_scatterplot_continuous(adata):
         equal_aspect_ratio=True,
     )
     # Add cluster labels
-    plots.superimpose_group_labels(
+    genetools.plots.superimpose_group_labels(
         ax,
         data=adata.obs,
         x_axis_key="umap_1",
@@ -132,7 +130,7 @@ def test_scatterplot_continuous(adata):
 @snapshot_image
 def test_scatterplot_no_hue(adata):
     """Test scatterplot with no hue, but many HueValueStyle defaults."""
-    fig, ax = plots.scatterplot(
+    fig, ax = genetools.plots.scatterplot(
         data=adata.obs,
         x_axis_key="umap_1",
         y_axis_key="umap_2",
@@ -150,7 +148,7 @@ def test_scatterplot_no_hue(adata):
         remove_y_ticks=True,
     )
     # Add cluster labels
-    plots.superimpose_group_labels(
+    genetools.plots.superimpose_group_labels(
         ax,
         data=adata.obs,
         x_axis_key="umap_1",
@@ -179,7 +177,7 @@ def test_stacked_bar_plot():
             "frequency": [0.25, 0.75, 15, 5, 250, 750],
         }
     )
-    fig, _ = plots.stacked_bar_plot(
+    fig, _ = genetools.plots.stacked_bar_plot(
         df,
         index_key="cluster",
         hue_key="cell_type",
@@ -219,7 +217,7 @@ def test_stacked_bar_plot_autocompute_frequencies():
     for ix, (ax, (disease, grp)) in enumerate(zip(axarr, df.groupby("disease"))):
         # only plot legend for top-most axis
         enable_legend = ix == 0
-        plots.stacked_bar_plot(
+        genetools.plots.stacked_bar_plot(
             grp,
             index_key="cluster",
             hue_key="expanded",
@@ -247,7 +245,7 @@ def test_wrap_axis_labels():
         + [{"cluster": "very/long/cluster/name/3", "expanded": "Not expanded"}] * 15
         + [{"cluster": "very/long/cluster/name/3", "expanded": "Expanded"}] * 15
     )
-    fig, ax = plots.stacked_bar_plot(
+    fig, ax = genetools.plots.stacked_bar_plot(
         df,
         index_key="cluster",
         hue_key="expanded",
@@ -264,7 +262,9 @@ def test_wrap_axis_labels():
     # Confirm there is no UserWarning: FixedFormatter should only be used together with FixedLocator
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10)
+        genetools.plots.wrap_tick_labels(
+            ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10
+        )
 
     assert (
         ax.get_xticklabels()[0].get_text() != "very long cluster name 1"
@@ -303,7 +303,7 @@ def test_add_sample_size_to_labels(categorical_df):
 
     # Add sample size to labels
     ax.set_yticklabels(
-        plots.add_sample_size_to_labels(
+        genetools.plots.add_sample_size_to_labels(
             labels=ax.get_yticklabels(), data=categorical_df, hue_key="disease type"
         )
     )
@@ -332,7 +332,7 @@ def test_add_sample_size_to_numerical_labels(categorical_df):
 
     # Add sample size to labels
     ax.set_xticklabels(
-        plots.add_sample_size_to_labels(
+        genetools.plots.add_sample_size_to_labels(
             labels=ax.get_xticklabels(),
             data=categorical_df,
             hue_key="distance_categorical",
@@ -362,7 +362,7 @@ def test_add_sample_size_to_boolean_labels(categorical_df):
 
     # Add sample size to labels
     ax.set_xticklabels(
-        plots.add_sample_size_to_labels(
+        genetools.plots.add_sample_size_to_labels(
             labels=ax.get_xticklabels(),
             data=categorical_df,
             hue_key="disease type boolean",
@@ -388,7 +388,7 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels(categorical_df):
 
     # Add sample size to labels
     ax.set_xticklabels(
-        plots.add_sample_size_to_labels(
+        genetools.plots.add_sample_size_to_labels(
             labels=ax.get_xticklabels(), data=categorical_df, hue_key="disease type"
         )
     )
@@ -397,17 +397,17 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels(categorical_df):
     # The labels will have linebreaks already from previous step,
     # but wrap_tick_labels will remove them as needed to follow its wrap_amount parameter
     assert ax.get_xticklabels()[0].get_text() == "Healthy\n($n=10$)"  # line break
-    plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
+    genetools.plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
     assert (
         ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
     )  # no more line break
 
     # Also confirm that rerunning has no further effect
-    plots.wrap_tick_labels(ax, wrap_x_axis=False, wrap_y_axis=False)
+    genetools.plots.wrap_tick_labels(ax, wrap_x_axis=False, wrap_y_axis=False)
     assert (
         ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
     )  # no more line break
-    plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
+    genetools.plots.wrap_tick_labels(ax, wrap_x_axis=True, wrap_y_axis=False)
     assert (
         ax.get_xticklabels()[0].get_text() == "Healthy ($n=10$)"
     )  # no more line break
@@ -417,7 +417,7 @@ def test_wrap_labels_overrides_any_linebreaks_in_labels(categorical_df):
 
 @snapshot_image
 def test_add_sample_size_to_legend(categorical_df):
-    fig, ax = plots.scatterplot(
+    fig, ax = genetools.plots.scatterplot(
         data=categorical_df,
         x_axis_key="distance",
         y_axis_key="disease type",
@@ -425,7 +425,9 @@ def test_add_sample_size_to_legend(categorical_df):
     )
 
     # Add sample size to legend
-    plots.add_sample_size_to_legend(ax=ax, data=categorical_df, hue_key="disease type")
+    genetools.plots.add_sample_size_to_legend(
+        ax=ax, data=categorical_df, hue_key="disease type"
+    )
     assert ax.get_legend().get_texts()[0].get_text() == "Healthy ($n=10$)"
     assert ax.get_legend().get_texts()[1].get_text() == "SARS-CoV-2 Patient ($n=20$)"
 
@@ -455,7 +457,7 @@ def test_pdf_deterministic_output(tmp_path, snapshot):
     plt.xlabel("X axis")
     plt.xlabel("Y axis")
 
-    plots.savefig(fig, fname)
+    genetools.plots.savefig(fig, fname)
 
     def get_md5(fname):
         with open(fname, "rb") as f:
@@ -485,7 +487,7 @@ def test_palette_with_unfilled_shapes(rng):
             zorder=10,
         )
     }
-    fig, _ = plots.scatterplot(
+    fig, _ = genetools.plots.scatterplot(
         data=df,
         x_axis_key="x",
         y_axis_key="y",
@@ -495,4 +497,218 @@ def test_palette_with_unfilled_shapes(rng):
         marker_edge_color="none",
         marker_size=None,
     )
+    return fig
+
+
+#####
+
+
+## Density plots:
+# First we will define the data and showcase several ways of plotting it.
+# Then we will snapshot test our special density function.
+
+
+@pytest.fixture
+def data():
+    # Per numpy.histogram2d docs:
+    # Generate non-symmetric test data
+    n = 10000
+    x = np.linspace(1, 100, n)
+    y = 2 * np.log(x) + np.random.rand(n) - 0.5
+    data = pd.DataFrame({"x": x, "y": y})
+    return data
+
+
+@snapshot_image
+def test_scatter(data):
+    ax = sns.scatterplot(data=data, x="x", y="y", alpha=0.5)
+    return ax.get_figure()
+
+
+@snapshot_image
+def test_scatter_joint(data):
+    g = sns.jointplot(data=data, x="x", y="y", alpha=0.5)
+    return g.fig
+
+
+@snapshot_image
+def test_hexbin(data):
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.hexbin(
+        data["x"],
+        data["y"],
+        gridsize=20,  # set grid size
+        cmap="rainbow",
+        # can also add: mintcnt=10
+        # which is the minimum number of points in a hexagon to color it
+        # i.e. the minimum count for background cells
+        # https://stackoverflow.com/a/5405654/130164
+    )
+    ax.plot(data["x"], 2 * np.log(data["x"]), "k-")
+    return fig
+
+
+@snapshot_image
+def test_overall_density(data):
+    binned_data = scipy.stats.binned_statistic_2d(
+        x=data["x"],
+        y=data["y"],
+        values=None,
+        statistic="count",
+        bins=20,
+        expand_binnumbers=True,
+    )
+    fig, ax = plt.subplots(figsize=(5, 5))
+    pltX, pltY = np.meshgrid(binned_data.x_edge, binned_data.y_edge)
+    plt.pcolormesh(pltX, pltY, binned_data.statistic.T, cmap="rainbow")
+    ax.plot(data["x"], 2 * np.log(data["x"]), "k-")
+    return fig
+
+
+@snapshot_image
+def test_overall_density_filtered(data):
+    n_bins = 20
+    quantile = 0.50
+
+    binned_data = scipy.stats.binned_statistic_2d(
+        x=data["x"],
+        y=data["y"],
+        values=None,
+        statistic="count",
+        bins=n_bins,
+        expand_binnumbers=True,
+    )
+
+    # which bin does each point belong to
+    bin_number_df = pd.DataFrame(binned_data.binnumber, index=["x_bin", "y_bin"]).T
+
+    # filter out any beyond-edge bins that capture values outside bin bounds (e.g. due to range parameter)
+    bin_number_df = bin_number_df[
+        (bin_number_df["x_bin"] >= 1)
+        & (bin_number_df["x_bin"] <= n_bins)
+        & (bin_number_df["y_bin"] >= 1)
+        & (bin_number_df["y_bin"] <= n_bins)
+    ]
+
+    # bin sizes: number of points per bin
+    bin_sizes = bin_number_df.groupby(["x_bin", "y_bin"], observed=False).size()
+
+    # Fill N/A counts
+    bin_sizes = bin_sizes.reindex(
+        pd.MultiIndex.from_product(
+            [
+                range(1, binned_data.statistic.shape[0] + 1),
+                range(1, binned_data.statistic.shape[1] + 1),
+            ],
+            names=bin_sizes.index.names,
+        ),
+        fill_value=0,
+    )
+
+    # choose bins to remove: drop bins with low number of counts, i.e. low overall density
+    bins_to_remove = bin_sizes[bin_sizes <= bin_sizes.quantile(quantile)].reset_index(
+        name="size"
+    )
+
+    # Plot
+    # Note need to transpose and handle one-indexed bin IDs.
+    newstat = binned_data.statistic.T
+    newstat[
+        bins_to_remove["y_bin"].values - 1, bins_to_remove["x_bin"].values - 1
+    ] = np.nan
+    fig, ax = plt.subplots(figsize=(5, 5))
+    pltX, pltY = np.meshgrid(binned_data.x_edge, binned_data.y_edge)
+    plt.pcolormesh(pltX, pltY, newstat, cmap="rainbow")
+    ax.plot(data["x"], 2 * np.log(data["x"]), "k-")
+    return fig
+
+
+@snapshot_image
+def test_relative_density(data):
+    data2 = pd.concat(
+        [
+            data.assign(classname="A"),
+            pd.DataFrame(
+                {
+                    "x": np.random.randint(1, 100, 1000),
+                    "y": np.random.randint(1, 10, 1000),
+                    "classname": "B",
+                }
+            ),
+        ],
+        axis=0,
+    )
+    fig, ax, _ = genetools.plots.two_class_relative_density_plot(
+        data2,
+        x_key="x",
+        y_key="y",
+        hue_key="classname",
+        positive_class="A",
+        colorbar_label="proportion",
+        quantile=0.90,
+    )
+    ax.plot(data["x"], 2 * np.log(data["x"]), "k-")
+    return fig
+    # TODO: add test we have same results with balanced_class_weights=True or False when class frequencies are identical (e.g. bump B class to 10000).
+    # Maybe return statistic directly so we can compare.
+
+
+####
+
+
+@snapshot_image
+def test_dotplot():
+    # Example with mean and standard deviation:
+    # Circle color represents the mean.
+    # Circle size represents stability (inverse of standard deviation).
+
+    items = []
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    for x in range(5):
+        for y in range(10):
+            items.append(
+                # Generate mean (positive or negative]) and standard deviation (>= 0)
+                {
+                    "x": alphabet[x],
+                    "y": alphabet[y],
+                    "mean": np.random.randn(),
+                    "std": np.random.rand(),
+                }
+            )
+
+    data = pd.DataFrame(items)
+    assert all(data["std"] >= 0)
+
+    with sns.plotting_context("paper"):
+        with sns.axes_style("white"):
+            fig, _ = genetools.plots.plot_two_key_color_and_size_dotplot(
+                data=data,
+                x_axis_key="x",
+                y_axis_key="y",
+                color_key="mean",
+                size_key="std",
+                inverse_size=True,  # Big circles are trustworthy/stable across the average, while little circles aren't
+                color_legend_text="Mean",
+                size_legend_text="Inverse std. dev.",
+                min_marker_size=20,  # so that the smallest circle for zero standard deviation is still visible
+                # set diverging colormap centered at 0
+                # so that bold circles are strong effects, while near-white circles are weak effects
+                color_cmap="RdBu_r",
+                color_vcenter=0,
+                figsize=(8, 6),
+            )
+            return fig
+
+
+####
+
+
+@snapshot_image
+def test_make_and_plot_confusion_matrix():
+    y_true = ["a", "a", "b", "b", "c"]
+    y_pred = [1, 2, 3, 4, 1]
+    cm = genetools.stats.make_confusion_matrix(
+        y_true, y_pred, "Ground truth", "Predicted"
+    )
+    fig, _ = genetools.plots.plot_confusion_matrix(cm)
     return fig
