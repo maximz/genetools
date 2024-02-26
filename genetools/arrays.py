@@ -64,25 +64,31 @@ def groupby_apply_weighted_value_counts(
 ) -> pd.Series:
     """
     This is to be used instead of:
-    df.groupby(["columnA", "columnB"], observed=True)
-        .apply(
-            lambda grp: malid.external.genetools_arrays.weighted_value_counts(
-                grp,
-                "category_column",
-                "weight_column",
-                normalize=True,
+
+    .. code-block:: python
+
+        df.groupby(["columnA", "columnB"], observed=True)
+            .apply(
+                lambda grp: malid.external.genetools_arrays.weighted_value_counts(
+                    grp,
+                    "category_column",
+                    "weight_column",
+                    normalize=True,
+                )
             )
-        )
 
     The preferred call is:
-    groupby_apply_weighted_value_counts(
-        df,
-        ["columnA", "columnB"],
-        observed=True,
-        category_column_name="category_column",
-        weight_column_name="weight_column",
-        normalize=True
-    )
+
+    .. code-block:: python
+
+        genetools.arrays.groupby_apply_weighted_value_counts(
+            df,
+            ["columnA", "columnB"],
+            observed=True,
+            category_column_name="category_column",
+            weight_column_name="weight_column",
+            normalize=True
+        )
 
     It's the same behavior with extra checks to make sure the output format has the expected shape: it should be a Series, like in standard groupby-value_counts.
 
@@ -292,10 +298,16 @@ def get_trim_both_sides_mask(
     a: Union[np.ndarray, pd.DataFrame], proportiontocut: float, axis: int = 0
 ) -> np.ndarray:
     """returns mask that applies consistent trim-both-sides learned on one array.
+
     suppose you have a data array and a weights array. you want to trimboth() the data array but keep the element weights aligned.
+
     solution:
-        trimming_mask = get_trim_both_sides_mask(data, proportiontocut=0.1)
+
+    .. code-block:: python
+
+        trimming_mask = genetools.arrays.get_trim_both_sides_mask(data, proportiontocut=0.1)
         return data[trimming_mask], weights[trimming_mask]
+
     """
     # based on scipy.stats.trimboth and scipy.stats.trim_mean
     a = np.asarray(a)

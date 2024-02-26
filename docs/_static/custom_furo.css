@@ -1,0 +1,7 @@
+/* hide light/dark toggle button - we are forcing light mode only */
+.theme-toggle-container { display: none; }
+
+/* reset furo's text highlighting color */
+p::selection {
+    background: lightblue;
+}

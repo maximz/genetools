@@ -119,7 +119,7 @@ def linkcode_resolve(domain, info):
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "alabaster"
+html_theme = "furo"
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
@@ -128,20 +128,72 @@ html_theme = "alabaster"
 #
 # see also requests docs conf, which uses alabaster theme too: https://github.com/psf/requests/blob/main/docs/conf.py
 html_theme_options = {
-    "show_powered_by": False,
-    "github_user": "maximz",
-    "github_repo": "genetools",
-    "github_banner": True,
-    "github_type": "star",
-    "show_related": False,
-    "note_bg": "#FFF59C",
+    ## Alabaster options:
+    # "show_powered_by": False,
+    # "github_user": "maximz",
+    # "github_repo": "genetools",
+    # "github_banner": True,
+    # "github_type": "star",
+    # "show_related": False,
+    # "note_bg": "#FFF59C",
+    ## Furo options:
+    "top_of_page_button": None,
+    # Since Furo doesn't allow us to disable dark mode, we make dark mode
+    # equivalent to light mode by overriding all colors back to their light value.
+    # From https://github.com/pradyunsg/furo/issues/28#issuecomment-1178947861
+    "dark_css_variables": {
+        # Taken from: https://github.com/pradyunsg/furo/blob/c682d5d3502f3fa713c909eebbf9f3afa0f469d9/src/furo/assets/styles/variables/_colors.scss
+        "color-problematic": "#b30000",
+        # Base Colors
+        "color-foreground-primary": "black",  # for main text and headings
+        "color-foreground-secondary": "#5a5c63",  # for secondary text
+        "color-foreground-muted": "#646776",  # for muted text
+        "color-foreground-border": "#878787",  # for content borders
+        "color-background-primary": "white",  # for content
+        "color-background-secondary": "#f8f9fb",  # for navigation + ToC
+        "color-background-hover": "#efeff4ff",  # for navigation-item hover
+        "color-background-hover--transparent": "#efeff400",
+        "color-background-border": "#eeebee",  # for UI borders
+        "color-background-item": "#ccc",  # for "background" items (eg: copybutton)
+        # Announcements
+        "color-announcement-background": "#000000dd",
+        "color-announcement-text": "#eeebee",
+        # Brand colors
+        "color-brand-primary": "#2962ff",
+        "color-brand-content": "#2a5adf",
+        # Highlighted text (search)
+        "color-highlighted-background": "#ddeeff",
+        # GUI Labels
+        "color-guilabel-background": "#ddeeff80",
+        "color-guilabel-border": "#bedaf580",
+        # API documentation
+        "color-api-keyword": "var(--color-foreground-secondary)",
+        "color-highlight-on-target": "#ffffcc",
+        # Admonitions
+        "color-admonition-background": "transparent",
+        # Cards
+        "color-card-border": "var(--color-background-secondary)",
+        "color-card-background": "transparent",
+        "color-card-marginals-background": "var(--color-background-hover)",
+        # Code blocks
+        "color-code-foreground": "black",
+        "color-code-background": "#f8f9fb",
+    },
 }
+# Force pygments style in dark mode back to the light variant
+pygments_dark_style = "tango"
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_extra_path = ["tests/baseline"]
+
+# These paths are either relative to html_static_path or fully qualified paths (eg. https://...)
+html_css_files = [
+    "custom_furo.css",
+]
 
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False

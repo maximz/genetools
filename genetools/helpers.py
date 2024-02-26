@@ -223,12 +223,10 @@ def parallel_groupby_apply(
 
     Func cannot be a lambda, since lambda functions can't be pickled for subprocesses.
 
-    Kwargs are passed to joblib.Parallel(...)
-
-    TODO: allow apply returning dataframe not just series -- see `_wrap_applied_output` in `pandas/core/groupby/generic.py`
-
-    TODO: wrap with progress bar: https://stackoverflow.com/a/58936697/130164
+    Kwargs are passed to ``joblib.Parallel(...)``
     """
+    # TODO: allow apply returning dataframe not just series -- see `_wrap_applied_output` in `pandas/core/groupby/generic.py`
+    # TODO: wrap with progress bar: https://stackoverflow.com/a/58936697/130164
 
     # Get values
     values = Parallel(**kwargs)(delayed(func)(group) for name, group in df_grouped)

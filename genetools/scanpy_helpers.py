@@ -110,11 +110,12 @@ def scale_anndata(
     Accepts pre-computed StandardScaler preprocessing transformer, so you can apply the same scaling to multiple anndatas.
 
     Args:
-    - scale_transformer: pre-defined preprocessing transformer to scale adata.X
-    - inplace: whether to modify input adata in place
-    - set_raw: whether to set adata.raw equal to input adata
 
-    Returns: adata, scale_transformer
+    * ``scale_transformer``: pre-defined preprocessing transformer to scale adata.X
+    * ``inplace``: whether to modify input adata in place
+    * ``set_raw``: whether to set adata.raw equal to input adata
+
+    Returns: ``adata, scale_transformer``
     """
     # TODO: set var and uns parameters too, and support max_value clipping like in in scanpy
     if scale_transformer is None:
@@ -151,7 +152,8 @@ def scale_train_and_test_anndatas(
 ):
     """
     Scale train anndata (like with scanpy.pp.scale), then apply same scaling to test anndata -- as opposed to scaling them independently.
-    If adata_test isn't supplied, this just scales adata_train indpendently.
+
+    If ``adata_test`` isn't supplied, this just scales ``adata_train`` indpendently.
     """
     adata_train_scaled, scale_transformer = scale_anndata(
         adata_train, scale_transformer=None, inplace=inplace, set_raw=set_raw, **kwargs
@@ -185,11 +187,12 @@ def pca_anndata(
     Accepts pre-computed PCA transformer, so you can apply the same PCA to multiple anndatas.
 
     Args:
-    - pca_transformer: pre-defined preprocessing transformer to run PCA on adata.X
-    - n_components: number of PCA components
-    - inplace: whether to modify input adata in place
 
-    Returns: adata, pca_transformer
+    * ``pca_transformer``: pre-defined preprocessing transformer to run PCA on adata.X
+    * ``n_components``: number of PCA components
+    * ``inplace``: whether to modify input adata in place
+
+    Returns: ``adata, pca_transformer``
     """
     # TODO: set var and uns parameters too
 
@@ -249,7 +252,8 @@ def pca_train_and_test_anndatas(
 ):
     """
     PCA train anndata (like with scanpy.pp.pca), then apply same PCA to test anndata -- as opposed to PCAing them independently.
-    If adata_test isn't supplied, this just scales adata_train independently.
+
+    If ``adata_test`` isn't supplied, this just scales ``adata_train`` independently.
     """
     adata_train_pcaed, pca_transformer = pca_anndata(
         adata_train,
@@ -285,13 +289,14 @@ def umap_anndata(
     Accepts pre-computed UMAP transformer, so you can apply the same UMAP to multiple anndatas.
 
     Args:
-    - umap_transformer: pre-defined preprocessing transformer to run UMAP on adata.X
-    - n_components: number of UMAP components
-    - inplace: whether to modify input adata in place
+
+    * ``umap_transformer``: pre-defined preprocessing transformer to run UMAP on adata.X
+    * ``n_components``: number of UMAP components
+    * ``inplace``: whether to modify input adata in place
 
     Anndata should already be scaled.
 
-    Returns: adata, umap_transformer
+    Returns: ``adata, umap_transformer``
     """
     if use_rapids:
         # GPU support
@@ -336,7 +341,8 @@ def umap_train_and_test_anndatas(
 ):
     """
     UMAP train anndata (like with scanpy.tl.umap), then apply same UMAP to test anndata -- as opposed to PCAing them independently.
-    If adata_test isn't supplied, this just scales adata_train independently.
+
+    If ``adata_test`` isn't supplied, this just scales ``adata_train`` independently.
     """
     adata_train_umaped, umap_transformer = umap_anndata(
         adata_train,
