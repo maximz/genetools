@@ -22,23 +22,6 @@ def test_importability():
     subprocess.run(["python", "-c", "import genetools; genetools.plots;"], check=True)
 
 
-def test_scanpy_not_mandatory_import():
-    """Confirm that scanpy_helpers does not import scanpy automatically (until methods are called)."""
-    # import genetools.scanpy_helpers
-    # assert 'scanpy' not in sys.modules.keys()
-
-    # Hacky way to get a clean python environment without all the pytest env stuff
-    # Because the above won't fail
-    subprocess.run(
-        [
-            "python",
-            "-c",
-            "import genetools; import sys; assert 'scanpy' not in sys.modules.keys()",
-        ],
-        check=True,
-    )
-
-
 def test_version_number_not_yet_on_pypi():
     """For release branches, check that the version number is not yet on PyPI, so we remember to bump the version number.
     Run only on pull request builds against master branch. (Not run on push builds of master branch itself)

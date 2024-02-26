@@ -10,7 +10,15 @@ with open("README.md") as readme_file:
 with open("CHANGELOG.md") as history_file:
     history = history_file.read()
 
-requirements = ["numpy", "matplotlib", "pandas", "seaborn"]
+requirements = [
+    "numpy",
+    "matplotlib",
+    "pandas",
+    "seaborn",
+    "scikit-learn",
+    "joblib",
+    "scipy",
+]
 
 setup_requirements = ["pytest-runner"]
 
@@ -41,7 +49,10 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/maximz/genetools",
-    version="0.7.0",
+    version="0.7.1",
     zip_safe=False,
-    extras_require={"scanpy": ["scanpy"]},
+    extras_require={
+        # This will also install anndata and UMAP packages
+        "scanpy": ["scanpy"]
+    },
 )

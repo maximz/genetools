@@ -1,10 +1,8 @@
 import pytest
 import numpy as np
-import scanpy as sc
 import pandas as pd
 import os
 import random
-import anndata
 import warnings
 import genetools
 import matplotlib
@@ -110,8 +108,8 @@ def adata(request):
     To regenerate this test data: `rm -r data && make regen-test-data`
     Note: We only allow recreating the anndata when pytest is called with --regenerate-anndata flag.
     If no cached values are available, and --regenerate-anndata is not specified, the tests will error out.
-
     """
+    import scanpy as sc
 
     # Require this pytest cli flag to regenerate anndata.
     regenerate_anndata = request.config.getoption("--regenerate-anndata")
@@ -129,6 +127,8 @@ def _make_adata(regenerate_anndata):
     """Generates anndata object.
     This downloads 5.9 MB of data upon the first call of the function and stores it in ./data/pbmc3k_raw.h5ad.
     """
+    import scanpy as sc
+
     # Following https://scanpy-tutorials.readthedocs.io/en/latest/pbmc3k.html
     adata = sc.datasets.pbmc3k()
 
@@ -195,6 +195,7 @@ def _make_adata(regenerate_anndata):
 
 def _export_adata(adata):
     """Persist anndata properties for test suite reproducibility."""
+    import anndata
 
     # obsm
     for key, fname in cache_keys["obsm"].items():
@@ -218,6 +219,8 @@ def _export_adata(adata):
 
 def _import_adata(adata):
     """Load persisted anndata properties for test suite reproducibility."""
+    import scanpy as sc
+
     # obsm
     for key, fname in cache_keys["obsm"].items():
         adata.obsm[key] = np.loadtxt(fname)
