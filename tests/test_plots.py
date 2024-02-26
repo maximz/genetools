@@ -656,12 +656,8 @@ def test_relative_density(data):
 ####
 
 
-@snapshot_image
-def test_dotplot():
-    # Example with mean and standard deviation:
-    # Circle color represents the mean.
-    # Circle size represents stability (inverse of standard deviation).
-
+@pytest.fixture
+def dotplot_data():
     items = []
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     for x in range(5):
@@ -678,11 +674,19 @@ def test_dotplot():
 
     data = pd.DataFrame(items)
     assert all(data["std"] >= 0)
+    return data
+
+
+@snapshot_image
+def test_dotplot(dotplot_data):
+    # Example with mean and standard deviation:
+    # Circle color represents the mean.
+    # Circle size represents stability (inverse of standard deviation).
 
     with sns.plotting_context("paper"):
         with sns.axes_style("white"):
             fig, _ = genetools.plots.plot_two_key_color_and_size_dotplot(
-                data=data,
+                data=dotplot_data,
                 x_axis_key="x",
                 y_axis_key="y",
                 color_key="mean",
@@ -695,6 +699,25 @@ def test_dotplot():
                 # so that bold circles are strong effects, while near-white circles are weak effects
                 color_cmap="RdBu_r",
                 color_vcenter=0,
+                figsize=(8, 6),
+            )
+            return fig
+
+
+@snapshot_image
+def test_dotplot_single_key(dotplot_data):
+    # Example with mean and standard deviation:
+    # Circle color represents the mean.
+    # Circle size represents stability (inverse of standard deviation).
+
+    with sns.plotting_context("paper"):
+        with sns.axes_style("white"):
+            fig, _ = genetools.plots.plot_color_and_size_dotplot(
+                data=dotplot_data,
+                x_axis_key="x",
+                y_axis_key="y",
+                value_key="mean",
+                legend_text="Mean",
                 figsize=(8, 6),
             )
             return fig
