@@ -664,16 +664,25 @@ def test_dotplot():
 
     items = []
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    for x in range(10):
+    for x in range(5):
         for y in range(10):
             items.append(
-                {"x": alphabet[x], "y": alphabet[y], "mean": x + y, "std": 1 + x + y}
+                # Generate mean (positive or negative]) and standard deviation (>= 0)
+                {
+                    "x": alphabet[x],
+                    "y": alphabet[y],
+                    "mean": np.random.randn(),
+                    "std": np.random.rand(),
+                }
             )
+
+    data = pd.DataFrame(items)
+    assert all(data["std"] >= 0)
 
     with sns.plotting_context("paper"):
         with sns.axes_style("white"):
             fig, _ = genetools.plots.plot_two_key_color_and_size_dotplot(
-                data=pd.DataFrame(items),
+                data=data,
                 x_axis_key="x",
                 y_axis_key="y",
                 color_key="mean",

@@ -1502,9 +1502,12 @@ def plot_confusion_matrix(
             ax=ax,
             linewidth=inside_border_width,
             cbar=draw_colorbar,
+            # plot all x and y tick labels
+            xticklabels=True,
+            yticklabels=True,
         )
         plt.setp(ax.get_yticklabels(), rotation="horizontal", va="center")
-        plt.setp(ax.get_xticklabels(), rotation="horizontal")
+        plt.setp(ax.get_xticklabels(), rotation="horizontal", ha="center")
 
         if outside_borders:
             # Activate outside borders
