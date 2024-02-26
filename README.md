@@ -12,12 +12,12 @@
 <tr>
 <td>
 
-[![](tests/baseline/test_scatterplot_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_scatterplot_discrete.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_scatterplot_discrete)
 
 </td>
 <td>
 
-[![](tests/baseline/test_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_stacked_bar_plot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_stacked_bar_plot)
 
 </td>
 </tr>
@@ -25,15 +25,29 @@
 <tr>
 <td>
 
-[![](tests/baseline/test_scatterplot_continuous.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_scatterplot_continuous.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_scatterplot_continuous)
 
 </td>
 <td>
 
-[![](tests/baseline/test_stacked_bar_plot_autocompute_frequencies.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py)
+[![](tests/baseline/test_stacked_bar_plot_autocompute_frequencies.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_stacked_bar_plot_autocompute_frequencies)
 
 </td>
 </tr>
+
+<tr>
+<td>
+
+[![](tests/baseline/test_dotplot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%20test_dotplot)
+
+</td>
+<td>
+
+[![](tests/baseline/test_relative_density.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_relative_density)
+
+</td>
+</tr>
+
 </table>
 
 ## Other features
@@ -80,6 +94,7 @@ make regen-test-data
 
 # run tests locally
 # this is done in a debian-based docker image to ensure image style matches what Github Actions CI will produce
+# failing image snapshot tests are recorded in tests/results/
 make build-docker-test-image # whenever requirements_dev.txt change
 make test
 
@@ -90,6 +105,7 @@ make regen-snapshot-figures
 make regen-test-data
 
 # run tests locally without docker, therefore omitting the snapshot tests
+# (the @snapshot_image tests are still executed but the images are not compared. the @pytest.mark.snapshot_custom are skipped altogether.)
 make test-without-figures
 
 # docs

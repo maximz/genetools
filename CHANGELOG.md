@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+* Many new stats, plotting, and helper functions. See PRs [#24](https://github.com/maximz/genetools/pull/24) and [#73](https://github.com/maximz/genetools/pull/73).
+
 ## 0.6.0
 
 * Two new functions to customize tick labels on any existing plot:

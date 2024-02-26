@@ -9,26 +9,53 @@ env:
   MASTER_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
   # create env var that is "true" if this is a PR and if it targets master
   IS_PR_TARGETING_MASTER: ${{ github.event_name == 'pull_request' && github.base_ref == 'master' }}
+  #
+  PUBLISH_DOCS: "true" # set to "false" to disable docs publishing
 
 jobs:
+  env_to_output:
+    # Store the above environment variables so that they can be accessed in other jobs' jobs.<job_id>.if conditionals
+    name: Store global environment variables as a job output to make accessible in other jobs for job-level if statements
+    # Sadly this is the only way to pass environment into if conditionals: see https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
+    # E.g. if you wanted to trigger another job based on if env.MASTER_PUSH is true, this is hard becasue env is not defined in the job-level if statement
+    # You could work around it by reimplementing the logic with a manual `if: github.event_name == 'push' && github.ref == 'refs/heads/master'`
+    # But that's not as nice as just using the env variable directly. And we also want to define PUBLISH_DOCS only once up top (this is not in the github context, so it's not available in job-level if statements at all)
+    # Solution:
+    # See https://stackoverflow.com/a/74386472/130164 and https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
+    # Mark other jobs as needing this job, then use needs.env_to_output.outputs.myVar in the if conditionals of those jobs
+    runs-on: ubuntu-latest
+    outputs:
+      masterPush: ${{ steps.init.outputs.masterPush }}
+      isPrTargetingMaster: ${{ steps.init.outputs.isPrTargetingMaster }}
+      publishDocs: ${{ steps.init.outputs.publishDocs }}
+
+    steps:
+      - name: Environment variables to output
+        id: init
+        run: |
+          echo "masterPush=${{ env.MASTER_PUSH }}" >> $GITHUB_OUTPUT
+          echo "isPrTargetingMaster=${{ env.IS_PR_TARGETING_MASTER }}" >> $GITHUB_OUTPUT
+          echo "publishDocs=${{ env.PUBLISH_DOCS }}" >> $GITHUB_OUTPUT
+
   tests:
     runs-on: ubuntu-latest
     strategy:
       # don't abort all other jobs
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.9]
+        use-older-seaborn: ['false', 'true']
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Get Python version
         run: python --version
       - name: Cache pip
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           # This path is specific to Ubuntu
           path: ~/.cache/pip
@@ -38,7 +65,7 @@ jobs:
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
       - name: Cache precommit
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # Look to see if there is a cache hit for the corresponding requirements file
@@ -49,6 +76,12 @@ jobs:
           python -m pip install --upgrade pip wheel 'setuptools<58'
           pip install -r requirements_dev.txt
           pip install -U codecov
+      - name: Install an older seaborn <0.13 if needed
+        # Some seaborn APIs changed at v0.13, so we want to run both code paths in our test suite
+        if: ${{ matrix.use-older-seaborn == 'true' }}
+        run: pip install --upgrade 'seaborn<0.13'
+      - name: Print out pip freeze
+        run: pip freeze
       - name: Lint
         run: |
             pre-commit install
@@ -87,30 +120,39 @@ jobs:
         run: echo "$IS_PR_TARGETING_MASTER" "$MASTER_PUSH"
       - name: Run tests
         # use temporary directory cleaned up after every job
-        run: pytest --basetemp={runner.temp} --cov=./ --cov-report xml --mpl --mpl-results-path=tests/results
+        run: pytest --basetemp=${{ runner.temp }} --cov=./ --cov-report xml --run-snapshots --mpl --mpl-results-path=tests/results
         env:
           MPLBACKEND: Agg
       - name: Upload pytest test result artifacts on failure
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
-          name: pytest-results-${{ matrix.python-version }}
-          path: tests/results
+          name: pytest-results-${{ matrix.python-version }}-${{ matrix.use-older-seaborn }}
+          path: |
+            tests/results
+            ${{ runner.temp }}/test*current
         if: ${{ failure() }}
       - name: Upload coverage on success
-        uses: codecov/codecov-action@v1
+        # v4 breaks tokenless uploads
+        # v3.1.5 is a specific version for node20. v3.1.6 returned to node16.
+        uses: codecov/codecov-action@v3.1.5
         if: ${{ success() }}
 
   docs:
     # can we avoid rebuilding netlify cli docker image every time? https://github.com/netlify/actions/issues/19
     runs-on: ubuntu-latest
-    needs: tests
+    needs: [tests, env_to_output]
+    if: needs.env_to_output.outputs.publishDocs == 'true'
+
+    # uncomment the following line to disable docs publishing
+    # if: false # disable docs publishing
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Install dependencies
         # pin setuptools to allow louvain install on py3.9: https://stackoverflow.com/a/69100830/130164 and https://github.com/pypa/setuptools/issues/2086
         run: |
@@ -122,54 +164,117 @@ jobs:
         if: ${{ env.MASTER_PUSH != 'true' }}
         uses: netlify/actions/cli@master
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_DEV_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.DEV_NETLIFY_SITE_ID }}
         with:
           args: deploy --dir="docs/_build/html"
         timeout-minutes: 5
-      - name: deploy prod docs to netlify
-        if: ${{ env.MASTER_PUSH == 'true' }}
-        uses: netlify/actions/cli@master
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.PROD_NETLIFY_SITE_ID }}
-        with:
-          args: deploy --dir="docs/_build/html" --prod
-        timeout-minutes: 5
 
-  pypi:
+
+  # If the tests and docs jobs succeeded,
+  # and if we are pushing to master branch (i.e. PR already merged),
+  # then deploy package to PyPI and docs to prod.
+  # Here we use an environment to ensure that production secrets can only be accessed by Github Actions jobs triggered from a particular branch (in this case, master).
+  deploy:
+    # Deploy to PyPI and prod docs site.
     runs-on: ubuntu-latest
-    needs: [tests, docs]
-    # can't use env here yet because not defined
-    # if: env.MASTER_PUSH == 'true'
+    needs: [tests, docs, env_to_output]
+
+    # Conditionals:
+    # 1) if docs job is skipped due to `if: false` setting, then make sure this deploy job still runs. from https://github.com/actions/runner/issues/491#issuecomment-1507495166
+    # 2) Only even attempt using the environment if we are going to be able to
+    if: always() && !cancelled() && !failure() && (needs.env_to_output.outputs.masterPush == 'true')
+
+    # Specify which environment to run this in, so the right secrets are loaded
+    # the prod environment will fail if we're not on the master branch when we try this
+    environment: production
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Install dependencies
         # pin setuptools to allow louvain install on py3.9: https://stackoverflow.com/a/69100830/130164 and https://github.com/pypa/setuptools/issues/2086
         run: |
           python -m pip install --upgrade pip wheel 'setuptools<58'
           pip install -r requirements_dev.txt
           pip install build
+
       - name: Build a binary wheel and a source tarball
         run: python -m build --sdist --wheel --outdir dist/ .
+      - name: make docs
+        run: make docs
 
-      # Test PyPI is a nice idea but they don't allow overwriting a version number either.
-      # - name: Publish distribution to Test PyPI
-      #   uses: pypa/gh-action-pypi-publish@master
-      #   with:
-      #     user: __token__
-      #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-      #     repository_url: https://test.pypi.org/legacy/
+      - name: deploy prod docs to netlify
+        uses: netlify/actions/cli@master
+        if: ${{ env.PUBLISH_DOCS == 'true' }}
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_PROD_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.PROD_NETLIFY_SITE_ID }}
+        with:
+          args: deploy --dir="docs/_build/html" --prod
+        timeout-minutes: 5
 
       - name: Publish package
         # TODO: other metadata for pypi
         uses: pypa/gh-action-pypi-publish@master
-        if: ${{ env.MASTER_PUSH == 'true' }}
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+
+  make_github_tag_and_release:
+    needs: [deploy, env_to_output]
+
+    # Only even attempt using the environment if we are going to be able to
+    if: needs.env_to_output.outputs.masterPush == 'true'
+
+    permissions:
+      # write permission is required to create a github release
+      contents: write
+
+      # write permission is required for autolabeler
+      # otherwise, read permission is required at least
+      pull-requests: read # write
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get new version
+        id: get-version
+        # Load current version (and a tag name with "v" prefix) into a step output
+        run: |
+          RAW_VERSION=$(python setup.py --version)
+          echo "TAG=v$RAW_VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$RAW_VERSION" >> $GITHUB_OUTPUT
+      - name: Echo version for debug
+        run: echo "The new version is ${{ steps.get-version.outputs.VERSION }}, tag ${{ steps.get-version.outputs.TAG }}"
+
+
+      - name: Publish the release notes and tag new version, or drafts release notes as PRs merge into master
+        # This step succeeds even when release-drafter internally fails with an HttpError.
+        uses: release-drafter/release-drafter@v6
+        id: release_drafter
+        with:
+          config-name: release-drafter-config.yml
+          disable-autolabeler: true
+          publish: true # revert to this if we retry draft releases: ${{ env.MASTER_PUSH == 'true' }}
+          tag: ${{ steps.get-version.outputs.TAG }}
+          version: ${{ steps.get-version.outputs.VERSION }}
+          commitish: master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Error if Release Drafter threw errors but still exited successfully
+        # Detect the situation described above
+        if: toJSON(steps.release_drafter.outputs) == '{}'
+        # Error out but provide error message (https://stackoverflow.com/a/74229789/130164)
+        run: |
+          echo "::error Release drafter step failed above."
+          exit 1

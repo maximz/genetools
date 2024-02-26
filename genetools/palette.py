@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import dataclasses
 import matplotlib as mpl
 

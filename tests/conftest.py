@@ -6,6 +6,40 @@ import os
 import random
 import anndata
 import warnings
+import genetools
+import matplotlib
+# import seaborn as sns
+
+matplotlib.use("Agg")
+# sns.set(context='paper', style='white')
+
+if os.getenv("_PYTEST_RAISE", "0") != "0":
+    # For debugging tests with pytest and vscode:
+    # Configure pytest to not swallow exceptions, so that vscode can catch them before the debugging session ends.
+    # See https://stackoverflow.com/a/62563106/130164
+    # The .vscode/launch.json configuration should be:
+    # "configurations": [
+    #     {
+    #         "name": "Python: Debug Tests",
+    #         "type": "python",
+    #         "request": "launch",
+    #         "program": "${file}",
+    #         "purpose": ["debug-test"],
+    #         "console": "integratedTerminal",
+    #         "justMyCode": false,
+    #         "env": {
+    #             "_PYTEST_RAISE": "1"
+    #         },
+    #     },
+    # ]
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_exception_interact(call):
+        raise call.excinfo.value
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_internalerror(excinfo):
+        raise excinfo.value
+
 
 # TODO: why didn't this solve the reproducibility problem across machines?
 random_seed = 12345
@@ -39,6 +73,25 @@ def pytest_addoption(parser):
         default=False,
         help="Regenerate test anndata",
     )
+
+    # Add a flag to run custom snapshot tests (not the snapshot image tests that are controlled by whether mpl flag is provided)
+    parser.addoption(
+        "--run-snapshots",
+        action="store_true",
+        default=False,
+        help="Run snapshot tests in addition to MPL tests",
+    )
+
+
+def pytest_runtest_setup(item):
+    # Called for each test function to determine whether to run it,
+    # based on global config (specifically --run-snapshots command line argument) and the test function's decorators (markers).
+    if "snapshot_custom" in item.keywords and not item.config.getoption(
+        "--run-snapshots"
+    ):
+        pytest.skip(
+            "Need --run-snapshots option to run this test marked @pytest.mark.snapshot_custom"
+        )
 
 
 @pytest.fixture(scope="session")
@@ -127,7 +180,7 @@ def _make_adata(regenerate_anndata):
     adata.obs["umap_2"] = adata.obsm["X_umap"][:, 1]
 
     # Pull a gene value into obs
-    adata.obs["CST3"] = adata[:, "CST3"].X
+    adata.obs["CST3"] = np.array(adata[:, "CST3"].X).ravel()
 
     # Try to replace all this with the saved values, if they exist
     if regenerate_anndata:
@@ -184,3 +237,12 @@ def _import_adata(adata):
     adata.uns = adata_uns.uns
 
     return adata
+
+
+######
+
+# Snapshot testing:
+# Define our own decorator for snapshot testing.
+snapshot_image = pytest.mark.mpl_image_compare(
+    savefig_kwargs=genetools.plots._savefig_defaults
+)

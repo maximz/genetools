@@ -2,7 +2,14 @@ import scipy
 import numpy as np
 import pandas as pd
 from functools import wraps
-from . import helpers
+import sklearn.utils.extmath
+import sklearn.metrics
+import scipy.special
+from typing import Optional, List, Union
+import dataclasses
+from scipy.interpolate import interp1d
+
+from genetools import helpers
 
 
 def accept_series(func):
@@ -45,6 +52,7 @@ def rank_normalize(values):
 
 def normalize_rows(df):
     """Make rows sum to 1.
+    If a row is all zeroes, this will return NaNs for the row entries, since there is no way to make the row sum to 1.
 
     :param df: dataframe
     :type df: pandas.DataFrame
@@ -56,6 +64,7 @@ def normalize_rows(df):
 
 def normalize_columns(df):
     """Make columns sum to 1.
+    If a column is all zeroes, this will return NaNs for the column entries, since there is no way to make the column sum to 1.
 
     :param df: dataframe
     :type df: pandas.DataFrame
@@ -165,7 +174,8 @@ def _coclustering_slow(cluster_ids_1, cluster_ids_2):
         # extract non-diagonal and true
         out = np.array(
             np.where(
-                ~np.eye(cells_by_cells.shape[0], dtype=bool) & (cells_by_cells == True)
+                # Ignore Ruff E712 that asks us to change to "cells_by_cells is True"
+                ~np.eye(cells_by_cells.shape[0], dtype=bool) & (cells_by_cells == True)  # noqa: E712
             )
         ).T
         assert out.shape[1] == 2, "each row should have two cell IDs"
@@ -392,3 +402,237 @@ def clr_normalize(mat, axis=0):
 
 
 # TODO: Implement tf-idf like https://constantamateur.github.io/2020-04-10-scDE/ ?
+
+
+def make_confusion_matrix(
+    y_true: Union[np.ndarray, list],
+    y_pred: Union[np.ndarray, list],
+    true_label: str,
+    pred_label: str,
+    label_order: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """Make a confusion matrix. Pairs with ``genetools.plots.plot_confusion_matrix``."""
+    # rows ground truth label - columns predicted label
+    cm = pd.crosstab(
+        np.array(y_true),
+        np.array(y_pred),
+        rownames=[true_label],
+        colnames=[pred_label],
+    )
+
+    # reorder so columns and index match
+    if label_order is None:
+        label_order = cm.index.union(cm.columns)
+
+    resulting_row_order, resulting_col_order = [
+        pd.Index(label_order).intersection(source_list).tolist()
+        for source_list in [
+            cm.index,
+            cm.columns,
+        ]
+    ]
+
+    cm = cm.loc[resulting_row_order][resulting_col_order]
+
+    return cm
+
+
+def softmax(arr: np.ndarray) -> np.ndarray:
+    """softmax a 1d vector or softmax all rows of a 2d array. ensures result sums to 1:
+
+    - if input was a 1d vector, returns a 1d vector summing to 1.
+    - if input was a 2d array, returns a 2d array where every row sums to 1.
+    """
+    orig_ndim = arr.ndim
+    if orig_ndim == 1:
+        # input array is a M-dim vector that we want to make sum to 1
+        # but sklearn softmax expects a matrix NxM, so pass a 1xM matrix.
+        # convert single vector into a single-row matrix, e.g. [1,2,3] to [[1, 2, 3]]:
+        arr = np.reshape(arr, (1, -1))
+
+    # Convert to probabilities with softmax
+    probabilities = sklearn.utils.extmath.softmax(arr.astype(float), copy=False)
+
+    if orig_ndim == 1:
+        # Finish workaround for softmax when X has a single row: extract relevant softmax result (first row of matrix)
+        probabilities = probabilities[0, :]
+
+    return probabilities
+
+
+def run_sigmoid_if_binary_and_softmax_if_multiclass(arr: np.ndarray) -> np.ndarray:
+    """
+    Convert logits to probabilities using sigmoid if binary, or softmax if multiclass.
+
+    Binary is standard logistic regression. Input should have shape `(n_samples, )` (as computed by decision_function() in sklearn), but the output will follow predict_proba's conventional output shape of `(n_samples, 2)`.
+
+    Multiclass approach is softmax regression as in R glmnet and sklearn. See https://en.wikipedia.org/wiki/Multinomial_logistic_regression#As_a_set_of_independent_binary_regressions
+    """
+    # Check if binary or multiclass
+    if arr.ndim == 1:
+        # Apply sigmoid:
+        # Positive class probability is expit(x) = 1/(1 + exp(-x)), where x is the logit
+        positive_probability = scipy.special.expit(arr)
+        return np.vstack((1 - positive_probability, positive_probability)).T
+        # Note: we deliberately ignore this other sklearn code path: https://github.com/scikit-learn/scikit-learn/blob/2beed55847ee70d363bdbfe14ee4401438fba057/sklearn/linear_model/_logistic.py#L1471
+        # That's a special case for "binary softmax classifier", but usually we want standard logistic regression. Extra context here: https://github.com/scikit-learn/scikit-learn/pull/11476#issuecomment-414346097
+    else:
+        return softmax(arr)
+
+
+@dataclasses.dataclass
+class ConfusionMatrixValues:
+    true_positives: float
+    false_negatives: float
+    false_positives: float
+    true_negatives: float
+
+
+def unpack_confusion_matrix(y_true, y_pred, positive_label, negative_label):
+    cm = sklearn.metrics.confusion_matrix(
+        y_true, y_pred, labels=[positive_label, negative_label]
+    )
+    # | TP  FN |
+    # | FP  TN |
+    tp, fn, fp, tn = cm.ravel()
+    # Alternatively, if we set labels=[negative_label, positive_label]:
+    # | TN  FP |
+    # | FN  TP |
+    # tn, fp, fn, tp = cm.ravel()
+
+    return ConfusionMatrixValues(
+        true_positives=tp, false_negatives=fn, false_positives=fp, true_negatives=tn
+    )
+
+
+def interpolate_roc(y_true, y_score, n_points=1000):
+    """
+    Interpolate receiver operating characteristic curve.
+
+    Returns:
+
+    * interpolated FPR
+    * interpolated TPR
+    * original FPR
+    * original TPR
+
+    To plot:
+
+    .. code-block:: python
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        plt.plot(
+            fpr,
+            tpr,
+            label="Real",
+            color="k",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.plot(
+            interpolated_fpr,
+            interpolated_tpr,
+            label="Interpolated",
+            color="r",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.xlabel("FPR")
+        plt.ylabel("TPR")
+        plt.legend(bbox_to_anchor=(1, 1))
+    """
+    # Use piecewise constant interpolation due to stepwise nature of the ROC curve
+    # See also https://stats.stackexchange.com/a/187003/297 and https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc_crossval.html
+    # First define a common set of specificity values along the x axis
+    base_fpr = np.linspace(0, 1, n_points + 1)
+
+    fpr, tpr, auc_thresholds = sklearn.metrics.roc_curve(
+        y_true, y_score, drop_intermediate=False
+    )
+    tpr_interpolator = interp1d(
+        fpr,
+        tpr,
+        # Stepwise constant interpolation:
+        kind="previous",
+        # Ensure that the function handles points outside the original FPR range by extrapolating to 0 at the beginning and 1 at the end, reflecting the behavior of a ROC curve:
+        bounds_error=False,
+        fill_value=(0.0, 1.0),
+    )
+    # Interpolate the TPR at these common FPR values
+    tpr_interpolated = tpr_interpolator(base_fpr)
+    # Interpolation struggles with boundaries. Let's explicitly set the start and end points so the curves match.
+    # - When FPR is 0, TPR should also be 0 (no positive cases are predicted, so true positives should also be 0).
+    # - When FPR is 1 (or the maximum FPR in our data), TPR should ideally be the maximum TPR from our data (representing the scenario where all cases are predicted as positive).
+    # TPR should be 0 when FPR is 0:
+    tpr_interpolated[0] = 0
+    # Set the last point to the maximum of the original TPR:
+    tpr_interpolated[-1] = tpr[-1]
+
+    return base_fpr, tpr_interpolated, fpr, tpr
+
+
+def interpolate_prc(y_true, y_score, n_points=1000):
+    """
+    Interpolate precision-recall curve.
+
+    Returns:
+
+    * interpolated recall
+    * interpolated precision
+    * original recall
+    * original precision
+
+    To plot:
+
+    .. code-block:: python
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        plt.plot(
+            recall,
+            precision,
+            label="Real",
+            color="k",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.plot(
+            interpolated_recall,
+            interpolated_precision,
+            label="Interpolated",
+            color="r",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        plt.legend(bbox_to_anchor=(1, 1))
+    """
+    # Use piecewise constant interpolation due to stepwise nature of the PR curve
+    precision, recall, _ = sklearn.metrics.precision_recall_curve(y_true, y_score)
+
+    # Remove bounds that sklearn eadds
+    recall_partial = recall[1:-1]
+    precision_partial = precision[1:-1]
+
+    # Generate our x axis points
+    base_recall = np.linspace(min(recall_partial), max(recall_partial), 1001)
+    base_recall = np.flip(base_recall)  # original is in reversed order too
+    # Create interpolator. Undo the reverse order of the sklearn outputs
+    pr_interpolator = interp1d(
+        np.flip(recall_partial),
+        np.flip(precision_partial),
+        kind="next",
+    )
+
+    # Interpolate the precision at our new recall values
+    precision_interpolated = pr_interpolator(base_recall)
+
+    # Add boundary points:
+    # After performing the interpolation, prepend the starting point (first value from precision, recall=1.0) and append the ending point (precision=1.0, last value from recall).
+    # See sklearn.metrics.precision_recall_curve docstring
+    precision_with_boundaries = np.concatenate(
+        ([precision[0]], precision_interpolated, [1.0])
+    )
+    recall_with_boundaries = np.concatenate(([1.0], base_recall, [recall[-1]]))
+
+    return recall_with_boundaries, precision_with_boundaries, recall, precision

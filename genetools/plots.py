@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -9,7 +8,20 @@ import textwrap
 
 from typing import Tuple, Union, List, Dict
 
-from .palette import HueValueStyle, convert_palette_list_to_dict
+from typing import Optional
+
+import genetools
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.cm
+import matplotlib.figure
+import matplotlib.axes
+import matplotlib.collections
+import matplotlib.colors
+import matplotlib.ticker
+
+
+from genetools.palette import HueValueStyle, convert_palette_list_to_dict
 
 # Pulled this out of function so we can use it in tests directly.
 _savefig_defaults = {
@@ -65,10 +77,10 @@ def savefig(fig: matplotlib.figure.Figure, *args, **kwargs):
 
 
 def scatterplot(
-    data,
-    x_axis_key,
-    y_axis_key,
-    hue_key,
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    hue_key: str = None,
     continuous_hue=False,
     continuous_cmap="viridis",
     discrete_palette: Union[
@@ -77,22 +89,22 @@ def scatterplot(
     ax: matplotlib.axes.Axes = None,
     figsize=(8, 8),
     marker_size=25,
-    alpha=1.0,
+    alpha: float = 1.0,
     na_color="lightgray",
-    marker="o",
-    marker_edge_color="none",
+    marker: str = "o",
+    marker_edge_color: str = "none",
+    marker_zorder: int = 1,
+    marker_size_scale_factor: float = 1.0,
+    legend_size_scale_factor: float = 1.0,
+    marker_face_color: str = None,
+    marker_linewidths: float = None,
     enable_legend=True,
-    legend_hues=None,
-    legend_title=None,
+    legend_hues: List[str] = None,
+    legend_title: str = None,
     sort_legend_hues=True,
     autoscale=True,
     equal_aspect_ratio=False,
     plotnonfinite=False,
-    label_key=None,
-    label_z_order=100,
-    label_color="k",
-    label_alpha=0.8,
-    label_size=15,
     remove_x_ticks=False,
     remove_y_ticks=False,
     tight_layout=True,
@@ -101,17 +113,21 @@ def scatterplot(
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Scatterplot colored by a discrete or continuous "hue" grouping variable.
 
-    For discrete hues, pass continuous_hue=False and a dictionary of colors and/or HueValueStyle objects in discrete_palette.
+    For discrete hues, pass ``continuous_hue = False`` and a dictionary of colors and/or HueValueStyle objects in ``discrete_palette``.
 
     Figure size will grow beyond the figsize parameter setting, because the legend is pulled out of figure.
     So you must use ``fig.savefig('filename', bbox_inches='tight')``.
     This is provided automatically by ``genetools.plots.savefig(fig, 'filename')``.
 
-    If using with scanpy, to get umap data from adata.obsm into adata.obs, try:
+    If using with scanpy, to join umap data from ``adata.obsm`` with other plot data in ``adata.obs``, try:
 
     .. code-block:: python
 
         data = adata.obs.assign(umap_1=adata.obsm["X_umap"][:, 0], umap_2=adata.obsm["X_umap"][:, 1])
+
+    If ``hue_key = None``, then all points will be colored by ``na_color``
+    and styled with parameters ``alpha``, ``marker``, ``marker_size``, ``zorder``, and ``marker_edge_color``.
+    The legend will be disabled.
 
     :param data: Input data, e.g. anndata.obs
     :type data: pandas.DataFrame
@@ -119,8 +135,8 @@ def scatterplot(
     :type x_axis_key: str
     :param y_axis_key: Column name to plot on Y axis
     :type y_axis_key: str
-    :param hue_key: Column name with hue groups that will be used to color points
-    :type hue_key: str
+    :param hue_key: Column name with hue groups that will be used to color points. defaults to None to color all points consistently.
+    :type hue_key: str, optional
     :param continuous_hue: Whether the hue column takes continuous or discrete/categorical values, defaults to False.
     :type continuous_hue: bool, optional
     :param continuous_cmap: Colormap to use for plotting continuous hue grouping variable, defaults to "viridis"
@@ -141,6 +157,16 @@ def scatterplot(
     :type marker: str, optional
     :param marker_edge_color: Default marker edge color, unless overriden by a HueValueStyle, defaults to "none" (no edge border drawn). Another common choice is "face", so the edge color matches the face color.
     :type marker_edge_color: str, optional
+    :param marker_zorder: Default marker z-order, unless overriden by a HueValueStyle, defaults to 1
+    :type marker_zorder: int, optional
+    :param marker_size_scale_factor: Default marker size scale factor, unless overriden by a HueValueStyle, defaults to 1.0
+    :type marker_size_scale_factor: float, optional
+    :param legend_size_scale_factor: Default legend size scale factor, unless overriden by a HueValueStyle, defaults to 1.0
+    :type legend_size_scale_factor: float, optional
+    :param marker_face_color: Default marker face color, unless overriden by a HueValueStyle, defaults to None (uses point color).
+    :type marker_face_color: str, optional
+    :param marker_linewidths: Default marker line widths, unless overriden by a HueValueStyle, defaults to None
+    :type marker_linewidths: float, optional
     :param enable_legend: Whether legend (or colorbar if continuous_hue) should be drawn. Defaults to True. May want to disable if plotting multiple subplots/panels.
     :type enable_legend: bool, optional
     :param legend_hues: Optionally override the list of hue values to include in legend, e.g. to add any hue values missing from the plotted subset of data; defaults to None
@@ -155,16 +181,6 @@ def scatterplot(
     :type equal_aspect_ratio: bool, optional
     :param plotnonfinite: For continuous hues, whether to plot points with inf or nan value, defaults to False
     :type plotnonfinite: bool, optional
-    :param label_key: Optional column name specifying group text labels to superimpose on plot, defaults to None
-    :type label_key: str, optional
-    :param label_z_order: Z-index for superimposed group text labels, defaults to 100
-    :type label_z_order: int, optional
-    :param label_color: Color for superimposed group text labels, defaults to "k"
-    :type label_color: str, optional
-    :param label_alpha: Opacity for superimposed group text labels, defaults to 0.8
-    :type label_alpha: float, optional
-    :param label_size: Text size of superimposed group labels, defaults to 15
-    :type label_size: int, optional
     :param remove_x_ticks: Remove X axis tick marks and labels, defaults to False
     :type remove_x_ticks: bool, optional
     :param remove_y_ticks: Remove Y axis tick marks and labels, defaults to False
@@ -189,10 +205,26 @@ def scatterplot(
     scattered_object = None
 
     default_style = HueValueStyle(
-        color=na_color, marker=marker, edgecolors=marker_edge_color, alpha=alpha
+        alpha=alpha,
+        color=na_color,
+        marker=marker,
+        edgecolors=marker_edge_color,
+        zorder=marker_zorder,
+        marker_size_scale_factor=marker_size_scale_factor,
+        legend_size_scale_factor=legend_size_scale_factor,
+        facecolors=marker_face_color,
+        linewidths=marker_linewidths,
     )
 
-    if continuous_hue:
+    if hue_key is None:
+        scattered_object = ax.scatter(
+            data[x_axis_key].values,
+            data[y_axis_key].values,
+            **default_style.render_scatter_props(marker_size=marker_size),
+            plotnonfinite=plotnonfinite,
+            **kwargs,
+        )
+    elif continuous_hue:
         # plot continuous variable with a colorbar
         scattered_object = ax.scatter(
             data[x_axis_key].values,
@@ -203,7 +235,6 @@ def scatterplot(
             plotnonfinite=plotnonfinite,
             **kwargs,
         )
-
     else:
         # plot discrete hue
         if legend_hues is None:
@@ -245,7 +276,7 @@ def scatterplot(
     if tight_layout:
         fig.tight_layout()
 
-    if enable_legend:
+    if enable_legend and hue_key is not None:
         if continuous_hue:
             # color bar
             # see also https://stackoverflow.com/a/44642014/130164
@@ -261,9 +292,13 @@ def scatterplot(
                 borderpad=0,
             )
 
-            colorbar = fig.colorbar(scattered_object, cax=colorbar_ax)
+            fig.colorbar(scattered_object, cax=colorbar_ax)
             if legend_title is not None:
                 colorbar_ax.set_title(legend_title)
+
+            # set global "current axes" back to main axes,
+            # so that any calls like plt.title target main ax rather than inset colorbar_ax
+            plt.sca(ax)
 
         else:
             # Create legend, and add any missing colors
@@ -322,23 +357,6 @@ def scatterplot(
             # align legend title left
             leg._legend_box.align = "left"
 
-    # add cluster labels
-    if label_key is not None:
-        for label, grp in data.groupby(label_key, observed=True):
-            ax.annotate(
-                f"{label}",
-                grp[[x_axis_key, y_axis_key]].mean().values,  # mean of x and y
-                horizontalalignment="center",
-                verticalalignment="center_baseline",
-                size=label_size,
-                weight="bold",
-                alpha=label_alpha,
-                color=label_color,
-                zorder=label_z_order,
-                # set background color https://stackoverflow.com/a/23698794/130164
-                bbox={"facecolor": "white", "alpha": 0.5, "edgecolor": "white"},
-            )
-
     if autoscale:
         # automatic zoom in
         ax.autoscale_view()
@@ -364,13 +382,13 @@ def stacked_bar_plot(
     data,
     index_key,
     hue_key,
-    value_key=None,
-    ax: matplotlib.axes.Axes = None,
+    value_key: Optional[str] = None,
+    ax: Optional[matplotlib.axes.Axes] = None,
     figsize=(8, 8),
     normalize=True,
     vertical=False,
-    palette: Union[
-        Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]]
+    palette: Optional[
+        Union[Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]]]
     ] = None,
     na_color="lightgray",
     hue_order=None,
@@ -405,7 +423,7 @@ def stacked_bar_plot(
     :type normalize: bool, optional
     :param vertical: Plot stacked bars vertically, defaults to False (horizontal)
     :type vertical: bool, optional
-    :param palette: Palette of colors and/or HueValuStyle objects to style the bars corresponding to each hue value, defaults to None (in which case default palette used). Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
+    :param palette: Palette of colors and/or HueValueStyle objects to style the bars corresponding to each hue value, defaults to None (in which case default palette used). Supply a matplotlib palette name, list of colors, or dict mapping hue values to colors or to HueValueStyle objects (or a mix of the two).
     :type palette: ``Union[ Dict[str, Union[HueValueStyle, str]], List[Union[HueValueStyle, str]] ]``, optional
     :param na_color: Fallback color to use for hue values that do not have an assigned style in palette, defaults to "lightgray"
     :type na_color: str, optional
@@ -425,12 +443,15 @@ def stacked_bar_plot(
     if value_key is None:
         # calculate frequency ourselves
         value_key = "frequency"
-        data = (
-            data.groupby(index_key)[hue_key]
-            .value_counts()
-            .rename(value_key)
-            .reset_index()
-        )
+        data = data.groupby(index_key)[hue_key].value_counts().rename(value_key)
+
+        # If categoricals, pandas < 1.5 loses hue_key column name: https://github.com/pandas-dev/pandas/issues/44324
+        # There may have also been a brief 1.4.x regression that caused a similar issue for non-categoricals: "Bug in DataFrameGroupBy.value_counts() where subset had no effect (GH46383)"
+        # So let's make sure the index names are set right.
+        # TODO: remove this once pandas 1.5 is widely used.
+        data.index.names = [index_key, hue_key]
+
+        data = data.reset_index()
 
     plot_df = data[[index_key, value_key, hue_key]].copy()
 
@@ -441,7 +462,7 @@ def stacked_bar_plot(
 
     if normalize:
         # Normalize values to sum to 1 per row
-        plot_df[value_key] = plot_df.groupby(index_key, sort=False)[value_key].apply(
+        plot_df[value_key] = plot_df.groupby(index_key)[value_key].transform(
             lambda g: g / g.sum()
         )
 
@@ -456,7 +477,7 @@ def stacked_bar_plot(
     # Accumulate value with every subsequent box/hue as we go across each index/row
     # These will become row-level "left offsets" for each hue
     cum_value_key = value_key + "_cumulative_value"
-    plot_df[cum_value_key] = plot_df.groupby(index_key, sort=False)[value_key].cumsum()
+    plot_df[cum_value_key] = plot_df.groupby(index_key)[value_key].cumsum()
 
     # create colors
     if palette is None:
@@ -464,19 +485,23 @@ def stacked_bar_plot(
         palette = sns.color_palette("muted", n_colors=len(hue_order))
 
     # if palette isn't a dict, then it must be a list. Convert to dict, i.e. register color for each hue value
+    # this also validates that there are enough colors for each hue value
     palette = convert_palette_list_to_dict(palette, hue_order, sort_hues=False)
 
     with sns.axes_style("white"):
         if ax is None:
-            fig, ax = plt.subplots(figsize=figsize)
+            # Normally we would unpack thuple as fig, ax = plt.subplots(), but we want to set ax type explicitly here
+            _tuple = plt.subplots(figsize=figsize)
+            fig = _tuple[0]
+            ax: matplotlib.axes.Axes = _tuple[1]
         else:
             # Passed in an existing ax
-            fig = ax.get_figure()
+            fig: matplotlib.figure.Figure = ax.get_figure()
 
         plot_func = ax.bar if vertical else ax.barh
 
         # Go hue-by-hue, and plot down the rows
-        # Use observed=True in case hue column is categorical and some expected categories are missing
+        # TODO: Add a test case for some expected hue_order entry missing from the data's hue column
         for hue_name in hue_order:
             hue_data = plot_df[plot_df[hue_key] == hue_name]
 
@@ -556,7 +581,11 @@ def stacked_bar_plot(
 
 
 def wrap_tick_labels(
-    ax: matplotlib.axes.Axes, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=20
+    ax: matplotlib.axes.Axes,
+    wrap_x_axis=True,
+    wrap_y_axis=True,
+    wrap_amount=20,
+    break_characters=["/"],
 ) -> matplotlib.axes.Axes:
     """Add text wrapping to tick labels on x and/or y axes on any plot.
 
@@ -570,6 +599,8 @@ def wrap_tick_labels(
     :type wrap_y_axis: bool, optional
     :param wrap_amount: length of each line of text, defaults to 20
     :type wrap_amount: int, optional
+    :param break_characters: characters at which to encourage to breaking text into lines, defaults to ['/']. set to None or [] to disable.
+    :type break_characters: list, optional
     :return: plot with modified tick labels
     :rtype: matplotlib.axes.Axes
     """
@@ -582,7 +613,15 @@ def wrap_tick_labels(
 
     def wrap_labels(labels):
         for label in labels:
-            label.set_text("\n".join(textwrap.wrap(label.get_text(), wrap_amount)))
+            original_text = label.get_text()
+            if break_characters is not None:
+                # encourage breaking at this character. e.g. convert "/" to "/ " to encourage line break there.
+                for break_character in break_characters:
+                    break_character_stripped = break_character.strip()
+                    original_text = original_text.replace(
+                        break_character_stripped, f"{break_character_stripped} "
+                    )
+            label.set_text("\n".join(textwrap.wrap(original_text, wrap_amount)))
         return labels
 
     if wrap_x_axis:
@@ -595,6 +634,57 @@ def wrap_tick_labels(
         ax.set_yticks(ax.get_yticks())
         ax.set_yticklabels(wrap_labels(ax.get_yticklabels()))
 
+    return ax
+
+
+def superimpose_group_labels(
+    ax: matplotlib.axes.Axes,
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    label_key: str,
+    label_z_order=100,
+    label_color="k",
+    label_alpha=0.8,
+    label_size=15,
+) -> matplotlib.axes.Axes:
+    """Add group (cluster) labels to existing plot.
+
+    :param ax: matplotlib Axes for existing plot
+    :type ax: matplotlib.axes.Axes
+    :param data: [description]
+    :type data: pd.DataFrame
+    :param x_axis_key: Column name to plot on X axis
+    :type x_axis_key: str
+    :param y_axis_key: Column name to plot on Y axis
+    :type y_axis_key: str
+    :param label_key: Column name specifying categorical group text labels to superimpose on plot, defaults to None
+    :type label_key: str, optional
+    :param label_z_order: Z-index for superimposed group text labels, defaults to 100
+    :type label_z_order: int, optional
+    :param label_color: Color for superimposed group text labels, defaults to "k"
+    :type label_color: str, optional
+    :param label_alpha: Opacity for superimposed group text labels, defaults to 0.8
+    :type label_alpha: float, optional
+    :param label_size: Text size of superimposed group labels, defaults to 15
+    :type label_size: int, optional
+    :return: matplotlib Axes with superimposed group labels
+    :rtype: matplotlib.axes.Axes
+    """
+    for label, grp in data.groupby(label_key, observed=True):
+        ax.annotate(
+            f"{label}",
+            grp[[x_axis_key, y_axis_key]].mean().values,  # mean of x and y
+            horizontalalignment="center",
+            verticalalignment="center_baseline",
+            size=label_size,
+            weight="bold",
+            alpha=label_alpha,
+            color=label_color,
+            zorder=label_z_order,
+            # set background color https://stackoverflow.com/a/23698794/130164
+            bbox={"facecolor": "white", "alpha": 0.5, "edgecolor": "white"},
+        )
     return ax
 
 
@@ -631,11 +721,811 @@ def add_sample_size_to_labels(labels: list, data: pd.DataFrame, hue_key: str) ->
         sample_size = data[data[hue_key] == hue_value].shape[0]
         return f"{hue_value}\n($n={sample_size}$)"
 
-    return [_make_label(label.get_text()) for label in labels]
+    # Labels start as strings
+    # Convert labels into the dtype of the column we will compare them against
+    # E.g. if the labels represent numerical categories, we cast to a numerical type before comparison
+    labels_cast_to_correct_dtype = pd.Series(
+        [label.get_text() for label in labels]
+    ).astype(data[hue_key].dtype)
+
+    # Make new labels
+    return [_make_label(label) for label in labels_cast_to_correct_dtype]
+
+
+def add_sample_size_to_legend(
+    ax: matplotlib.axes.Axes, data: pd.DataFrame, hue_key: str
+) -> matplotlib.axes.Axes:
+    """Add sample size to legend labels on any plot with categorical hues.
+
+    Sample size for each label is extracted from the ``hue_key`` column of dataframe ``data``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        fig, ax = genetools.plots.scatterplot(
+            data=df,
+            x_axis_key="x",
+            y_axis_key="y",
+            hue_key="Group"
+        )
+        genetools.plots.add_sample_size_to_legend(
+            ax=ax,
+            data=df,
+            hue_key="Group"
+        )
+
+    :param ax: matplotlib Axes for existing plot
+    :type ax: matplotlib.axes.Axes
+    :param data: dataset with categorical groups
+    :type data: pd.DataFrame
+    :param hue_key: column name specifying categorical groups in dataset ``data``
+    :type hue_key: str
+    :return: matplotlib Axes with modified legend labels with group sample sizes attached
+    :rtype: matplotlib.axes.Axes
+    """
+
+    def _make_label(hue_value):
+        sample_size = data[data[hue_key] == hue_value].shape[0]
+        return f"{hue_value} ($n={sample_size}$)"
+
+    legend = ax.get_legend()
+    for label in legend.get_texts():
+        label.set_text(_make_label(label.get_text()))
+
+    return ax
 
 
 ####
 
+
+def _common_dotplot(
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    color_key: str,
+    size_key: str,
+    ###
+    color_cmap: Optional[Union[str, matplotlib.colors.Colormap]] = None,
+    color_vmin: Optional[float] = None,
+    color_vmax: Optional[float] = None,
+    color_vcenter: Optional[float] = None,
+    size_vmin: Optional[float] = None,
+    size_vmax: Optional[float] = None,
+    size_vcenter: Optional[float] = None,
+    ###
+    # Configure which entries will be displayed in size legend:
+    # n_legend_items_for_size: int = 5,
+    extend_size_legend_to_vmin_vmax: bool = False,
+    # Providing representative_sizes_for_legend will override n_legend_items_for_size and extend_size_legend_to_vmin_vmax
+    representative_sizes_for_legend: Optional[List[float]] = None,
+    # If should_size_legend_items_be_colored is False, all size legend items will be uniform black
+    should_size_legend_items_be_colored: bool = False,
+    ###
+    figsize: Optional[Tuple[float, float]] = None,
+    inverse_size: bool = False,
+    min_marker_size: int = 1,
+    marker_size_scale_factor: int = 100,
+    grid: bool = True,
+) -> Tuple[
+    matplotlib.figure.Figure,
+    matplotlib.axes.Axes,
+    matplotlib.collections.PathCollection,
+    List[matplotlib.collections.PathCollection],
+    List[str],
+]:
+    # Inspiration from:
+    # https://stackoverflow.com/a/59384782/130164
+    # https://stackoverflow.com/a/65654470/130164
+    # https://stackoverflow.com/a/63559754/130164
+
+    fig = None
+    try:
+        if figsize is None:
+            # autosize
+            n_cols = data[x_axis_key].nunique()
+            n_rows = data[y_axis_key].nunique()
+            figsize = (n_cols * 1.5, n_rows / 2.5)
+
+        def _generate_size_norm_input_data(
+            size_values: Union[np.ndarray, pd.Series, List[float]],
+        ) -> np.ndarray:
+            # Clip the size values at size_vmin and size_vmax (which may be None) before scaling
+            # (Similar clipping for color is done in the scatter call below)
+            clipped_size_data = np.array(size_values)
+            if size_vmin is not None or size_vmax is not None:
+                clipped_size_data = np.clip(clipped_size_data, size_vmin, size_vmax)
+
+            if size_vcenter is not None:
+                # Support a vcenter for size, similar to color_vcenter, to allow divergent size palettes so negative values can have big sizes.
+                # Example: size_vcenter=0 would make 0 have small size while 1 and -1 have large size.
+                # Calculate the absolute difference from vcenter
+                abs_diff_from_vcenter = np.abs(clipped_size_data - size_vcenter)
+                clipped_size_data = abs_diff_from_vcenter
+
+            # Note we have to reshape/ravel the data because this scaler expects a 2d array
+            return clipped_size_data.reshape(-1, 1)
+
+        # Fit the scaler to the clipped data
+        # Due to clip=True, we do not need to repeat manual np.clip before calling size_scaller.transform.
+        # Note we have to reshape/ravel the data because this scaler expects a 2d array
+        size_scaler = MinMaxScaler(clip=True).fit(
+            _generate_size_norm_input_data(data[size_key])
+        )
+
+        def size_norm(x: Union[np.ndarray, pd.Series, List[float]]) -> np.ndarray:
+            """convert raw size data to plot marker size"""
+            # Note we have to reshape/ravel the data because this scaler expects a 2d array
+            transformed = size_scaler.transform(
+                _generate_size_norm_input_data(x)
+            ).ravel()
+            if inverse_size:
+                transformed = 1 - transformed
+
+            return min_marker_size + marker_size_scale_factor * transformed
+
+        fig, ax = plt.subplots(figsize=figsize)
+
+        if color_vcenter is not None:
+            # Create norm centered at color_vcenter.
+            # We have to also handle color_vmin and color_vmax if they are not None.
+            # They can't be passed alongside a norm to ax.scatter: "ValueError: Passing a Normalize instance simultaneously with vmin/vmax is not supported.  Please pass vmin/vmax directly to the norm when creating it."
+            plot_vmin, plot_vmax = None, None
+
+            # Previously we used: norm = matplotlib.colors.CenteredNorm(vcenter=color_vcenter)
+            # But CenteredNorm does not accept vmin, vmax in its constructor, so we have to switch to TwoSlopeNorm
+            color_norm = matplotlib.colors.TwoSlopeNorm(
+                vcenter=color_vcenter, vmin=color_vmin, vmax=color_vmax
+            )
+        else:
+            plot_vmin, plot_vmax = color_vmin, color_vmax
+            color_norm = None
+
+        scatter = ax.scatter(
+            data[x_axis_key].values,
+            data[y_axis_key].values,
+            c=data[color_key].values,
+            s=size_norm(data[size_key]),
+            cmap=color_cmap,
+            norm=color_norm,
+            vmin=plot_vmin,
+            vmax=plot_vmax,
+            alpha=1,
+            # Add outlines to the scatter points:
+            edgecolors="lightgrey",
+            linewidths=0.5,
+        )
+        ax.set_xlim(-0.5, max(ax.get_xticks()) + 0.5)
+        ax.set_ylim(-0.5, max(ax.get_yticks()) + 0.5)
+        ax.invert_yaxis()  # respect initial ordering - go top to bottom
+
+        # Create grid
+        if grid:
+            ax.set_xticks(np.array(ax.get_xticks()) - 0.5, minor=True)
+            ax.set_yticks(np.array(ax.get_yticks()) - 0.5, minor=True)
+            ax.grid(which="minor")
+
+        # Aspect ratio
+        ax.set_aspect("equal", "box")
+
+        # At this point, ax.get_xticklabels() may return empty tick labels and emit UserWarning: FixedFormatter should only be used together with FixedLocator
+        # Must draw the canvas to position the ticks: https://stackoverflow.com/a/41124884/130164
+        # And must assign tick locations prior to assigning tick labels, i.e. set_ticks(get_ticks()): https://stackoverflow.com/a/68794383/130164
+        fig.canvas.draw()
+        ax.set_xticks(ax.get_xticks())
+        ax.set_xticklabels(ax.get_xticklabels(), rotation="vertical")
+
+        ## Produce size legend entries containing a cross section of values.
+
+        # User may have passed representative_sizes_for_legend.
+        if representative_sizes_for_legend is not None:
+            representative_sizes_for_legend = np.array(representative_sizes_for_legend)
+        else:
+            # Generate evenly spaced values
+
+            # First, find the extents:
+            data_min_size_clipped, data_max_size_clipped = (
+                np.min(data[size_key]),
+                np.max(data[size_key]),
+            )
+            if size_vmin is not None or size_vmax is not None:
+                data_min_size_clipped = np.clip(
+                    data_min_size_clipped, size_vmin, size_vmax
+                )
+                data_max_size_clipped = np.clip(
+                    data_max_size_clipped, size_vmin, size_vmax
+                )
+
+            if extend_size_legend_to_vmin_vmax:
+                # If extend_size_legend_to_vmin_vmax is True, override extents to vmin and vmax (unless they are None)
+                if size_vmin is not None:
+                    data_min_size_clipped = size_vmin
+                if size_vmax is not None:
+                    data_max_size_clipped = size_vmax
+
+            # Generate values:
+            if (
+                size_vcenter is not None
+                and data_min_size_clipped <= size_vcenter <= data_max_size_clipped
+            ):
+                # If size_vcenter is in the data range, add it to the representative sizes.
+                # Therefore generate one fewer entry through auto generation.
+                add_extra = np.array([size_vcenter])
+            else:
+                add_extra = np.array([])
+
+            # n_legend_items_for_size = 5
+            # representative_sizes_for_legend = np.linspace(data_min_size_clipped, data_max_size_clipped, n_legend_items_for_size)
+            # Instead of linspace, use a Locator as in legend_elements(): https://github.com/matplotlib/matplotlib/blob/eb02b108ea181930ab37717c75e07ba792e01f1d/lib/matplotlib/collections.py#L1143-L1152
+            # num = n_legend_items_for_size - len(add_extra)
+            # locator = matplotlib.ticker.MaxNLocator(nbins=num-1, min_n_ticks=num, steps=[1, 2, 2.5, 3, 5, 6, 8, 10])
+            locator = matplotlib.ticker.AutoLocator()
+            representative_sizes_for_legend: np.ndarray = np.hstack(
+                [
+                    locator.tick_values(data_min_size_clipped, data_max_size_clipped),
+                    add_extra,
+                ]
+            )
+            representative_sizes_for_legend = np.clip(
+                representative_sizes_for_legend,
+                data_min_size_clipped,
+                data_max_size_clipped,
+            )
+            representative_sizes_for_legend = np.unique(
+                representative_sizes_for_legend
+            )  # remove any duplicates
+            representative_sizes_for_legend.sort()
+
+        # Calculate corresponding plot sizes
+        representative_sizes_after_norm = size_norm(representative_sizes_for_legend)
+
+        # Calculate corresponding plot colors
+        if should_size_legend_items_be_colored:
+            representative_colors = representative_sizes_for_legend
+            if color_vmin is not None or color_vmax is not None:
+                # Clip color values at color vmin and color max, which may be None
+                representative_colors = np.clip(
+                    representative_colors, color_vmin, color_vmax
+                )
+            if color_norm is not None:
+                # Apply a color norm
+                representative_colors = [
+                    color_norm(value) for value in representative_colors
+                ]
+            # Apply color cmap
+            # First, cast string cmaps to a callable function
+            color_cmap_func = matplotlib.cm.get_cmap(color_cmap)
+            representative_colors = [
+                color_cmap_func(value) for value in representative_colors
+            ]
+        else:
+            representative_colors = ["grey"] * len(representative_sizes_for_legend)
+
+        # Create legend handles and labels manually
+        handles = [
+            plt.scatter(
+                [],
+                [],
+                s=size,
+                color=color,
+                alpha=1,
+                # Add outlines to the scatter points:
+                edgecolors="lightgrey",
+                linewidths=0.5,
+            )
+            for size, color in zip(
+                representative_sizes_after_norm, representative_colors
+            )
+        ]
+        # Create legend labels with %g formatting to remove any trailing zeros when converting a float to string
+        # labels = [f"{value:g}" for value in representative_sizes_for_legend]
+        # Use this instead to set a maximum precision and avoid scientific notation:
+        labels = [
+            np.format_float_positional(val, trim="-", unique=True, precision=4)
+            for val in representative_sizes_for_legend
+        ]
+
+        return fig, ax, scatter, handles, labels
+    except Exception as err:
+        # If there is an error, close the figure to prevent it from being displayed in a partial or broken state
+        if fig is not None:
+            plt.close(fig)
+        # Reraise
+        raise err
+
+
+def plot_color_and_size_dotplot(
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    value_key: str,
+    color_cmap: Optional[Union[str, matplotlib.colors.Colormap]] = None,
+    color_and_size_vmin: Optional[float] = None,
+    color_and_size_vmax: Optional[float] = None,
+    color_and_size_vcenter: Optional[float] = None,
+    figsize: Optional[Tuple[float, float]] = None,
+    legend_text: Optional[str] = None,
+    # n_legend_items: int = 5,
+    extend_legend_to_vmin_vmax: bool = False,
+    representative_values_for_legend: Optional[List[float]] = None,
+    min_marker_size: int = 1,
+    marker_size_scale_factor: int = 100,
+    grid: bool = True,
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """
+    Plot dotplot heatmap showing a key as both color and size.
+    """
+    fig = None
+    try:
+        fig, ax, scatter, handles, labels = _common_dotplot(
+            data=data,
+            x_axis_key=x_axis_key,
+            y_axis_key=y_axis_key,
+            color_key=value_key,
+            size_key=value_key,
+            color_cmap=color_cmap,
+            color_vmin=color_and_size_vmin,
+            color_vmax=color_and_size_vmax,
+            color_vcenter=color_and_size_vcenter,
+            size_vmin=color_and_size_vmin,
+            size_vmax=color_and_size_vmax,
+            size_vcenter=color_and_size_vcenter,
+            # n_legend_items_for_size=n_legend_items,
+            extend_size_legend_to_vmin_vmax=extend_legend_to_vmin_vmax,
+            representative_sizes_for_legend=representative_values_for_legend,
+            # Size legend will represent both size_key and color_key:
+            should_size_legend_items_be_colored=True,
+            figsize=figsize,
+            inverse_size=False,
+            min_marker_size=min_marker_size,
+            marker_size_scale_factor=marker_size_scale_factor,
+            grid=grid,
+        )
+
+        def add_padding_to_multiline_string(text: str, padding: int):
+            """
+            Adds spaces to the beginning of every line in a multiline string.
+
+            :param text: The original multiline string.
+            :param padding: The number of spaces to add at the beginning of each line.
+            :return: A new multiline string with added padding.
+            """
+            padding_spaces = " " * padding
+            lines = text.split("\n")
+            padded_lines = [padding_spaces + line for line in lines]
+            return "\n".join(padded_lines)
+
+        size_legend = ax.legend(
+            handles,
+            labels,
+            #
+            # Left horizontal-align and center vertical-align the legend relative to this anchor point:
+            bbox_to_anchor=(1.05, 0.5),
+            loc="center left",
+            #
+            title=add_padding_to_multiline_string(
+                legend_text if legend_text is not None else value_key, padding=3
+            ),
+            borderaxespad=0.0,
+            frameon=False,
+            framealpha=0.0,
+            title_fontproperties={"weight": "bold", "size": "medium"},
+            numpoints=1,
+            scatterpoints=1,
+            markerscale=1.0,
+            borderpad=1,
+        )
+        # align legend title left
+        size_legend._legend_box.align = "left"
+
+        return fig, ax
+    except Exception as err:
+        # If there is an error, close the figure to prevent it from being displayed in a partial or broken state
+        if fig is not None:
+            plt.close(fig)
+        # Reraise
+        raise err
+
+
+def plot_two_key_color_and_size_dotplot(
+    data: pd.DataFrame,
+    x_axis_key: str,
+    y_axis_key: str,
+    color_key: str,
+    size_key: str,
+    color_cmap: Optional[Union[str, matplotlib.colors.Colormap]] = None,
+    color_vmin: Optional[float] = None,
+    color_vmax: Optional[float] = None,
+    color_vcenter: Optional[float] = None,
+    figsize: Optional[Tuple[float, float]] = None,
+    size_vmin: Optional[float] = None,
+    size_vmax: Optional[float] = None,
+    size_vcenter: Optional[float] = None,
+    # n_legend_items_for_size: int = 5,
+    extend_size_legend_to_vmin_vmax: bool = False,
+    representative_sizes_for_legend: Optional[List[float]] = None,
+    inverse_size: bool = False,
+    color_legend_text: Optional[str] = None,
+    size_legend_text: Optional[str] = None,
+    shared_legend_title: Optional[str] = None,
+    min_marker_size: int = 1,
+    marker_size_scale_factor: int = 100,
+    grid: bool = True,
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """
+    Plot dotplot heatmap showing two keys together.
+
+    Example with mean and standard deviation: Circle color represents the mean. Circle size represents stability (inverse of standard deviation). Suggestions for this use case:
+
+    - Pass mean key as `color_key` and standard deviation key as `size_key`.
+    - Set `inverse_size=True`. Big circles are trustworthy/stable across the average, while little circles aren't
+    - Set `color_legend_text="Mean", size_legend_text="Inverse std. dev."`
+    - Set `min_marker_size=20` so that the smallest circle for zero standard deviation is still visible
+    - With a diverging colormap (e.g. `color_cmap='RdBu_r', color_vcenter=0`) bold circles are strong effects, while near-white circles are weak effects
+    """
+    fig = None
+    try:
+        fig, ax, scatter, handles, labels = _common_dotplot(
+            data=data,
+            x_axis_key=x_axis_key,
+            y_axis_key=y_axis_key,
+            color_key=color_key,
+            size_key=size_key,
+            color_cmap=color_cmap,
+            color_vmin=color_vmin,
+            color_vmax=color_vmax,
+            color_vcenter=color_vcenter,
+            size_vmin=size_vmin,
+            size_vmax=size_vmax,
+            size_vcenter=size_vcenter,
+            # n_legend_items_for_size=n_legend_items_for_size,
+            extend_size_legend_to_vmin_vmax=extend_size_legend_to_vmin_vmax,
+            representative_sizes_for_legend=representative_sizes_for_legend,
+            # Size legend should be based entirely on size_key, not color_key:
+            should_size_legend_items_be_colored=False,
+            figsize=figsize,
+            inverse_size=inverse_size,
+            min_marker_size=min_marker_size,
+            marker_size_scale_factor=marker_size_scale_factor,
+            grid=grid,
+        )
+
+        # Make colorbar axes:
+        # [xcorner, ycorner, width, height]: https://stackoverflow.com/a/65943132/130164
+        # consider [1.1, 0.5, 0.3, 0.4] for bigger colorbar
+        cbar_ax = ax.inset_axes([1.20, 0.52, 0.3, 0.2], transform=ax.transAxes)
+
+        # Make colorbar
+        fig.colorbar(scatter, cax=cbar_ax).set_label(
+            color_legend_text if color_legend_text is not None else color_key,
+            rotation=0,
+            size="medium",
+            weight="bold",
+            horizontalalignment="left",
+            verticalalignment="center",
+        )
+        if shared_legend_title is not None:
+            cbar_ax.set_title(
+                shared_legend_title, loc="left", pad=10, fontweight="bold"
+            )
+
+        # Produce a legend with a cross section of sizes from the scatter.
+        size_legend = ax.legend(
+            handles,
+            labels,
+            # consider this for lower down:
+            # bbox_to_anchor=(1.05, 0.25),
+            bbox_to_anchor=(1.05, 0.48),
+            loc="upper left",
+            title=size_legend_text if size_legend_text is not None else size_key,
+            borderaxespad=0.0,
+            frameon=False,
+            framealpha=0.0,
+            title_fontproperties={"weight": "bold", "size": "medium"},
+            numpoints=1,
+            scatterpoints=1,
+            markerscale=1.0,
+        )
+        # align legend title left
+        size_legend._legend_box.align = "left"
+
+        return fig, ax
+    except Exception as err:
+        # If there is an error, close the figure to prevent it from being displayed in a partial or broken state
+        if fig is not None:
+            plt.close(fig)
+        # Reraise
+        raise err
+
+
+def two_class_relative_density_plot(
+    data: pd.DataFrame,
+    x_key: str,
+    y_key: str,
+    hue_key: str,
+    positive_class: str,
+    colorbar_label: Optional[str] = None,
+    quantile: Optional[float] = 0.50,
+    figsize=(8, 8),
+    n_bins=50,
+    range=None,  # Extents within which to make bins
+    continuous_cmap: str = "RdBu_r",
+    cmap_vcenter: Optional[float] = 0.5,
+    balanced_class_weights=True,
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes, str]:
+    """
+    Two-class relative density plot.
+    For alternatives, see contour KDEs in seaborn's displot function.
+    (For general 2D density plots, see plt.hexbin, sns.jointplot, and plt.hist2d.)
+    """
+    import scipy.stats
+
+    def _weighted_mean(arr: np.ndarray, true_weight: float, false_weight: float):
+        # how many total values in bin
+        count = arr.shape[0]
+        # how many positive class values in bin
+        count_true = (arr.astype(int) == 1).sum()
+        # how many negative class values in bin
+        count_false = count - count_true
+
+        numerator = count_true * true_weight
+        return numerator / (numerator + count_false * false_weight)
+
+    if balanced_class_weights:
+        # Account for imbalance in positive and negative class sizes.
+        # Members of rarer classes should count more towards density.
+        # Instead of counting 1 towards density, each item should count 1/n_total_for_its_class.
+
+        # Example: a bin with 2 positive and 2 negative examples.
+        # But positive class has 1000 items overall and negative class has 10000 overall.
+        # Unweighted mean: 2/(2+2) = 1/2.
+        # Weighted: (2/1000) / [ (2/1000) + (2/10000) ] = 0.91.
+        # The bin is significantly more positive than negative, relative to base rates.
+
+        n_positive = (data[hue_key] == positive_class).sum()
+        n_negative = data.shape[0] - n_positive
+
+        def statistic(arr):
+            return _weighted_mean(
+                arr=arr, true_weight=1 / n_positive, false_weight=1 / n_negative
+            )
+    else:
+        statistic = "mean"
+
+    binned_data = scipy.stats.binned_statistic_2d(
+        data[x_key],
+        data[y_key],
+        data[hue_key] == positive_class,
+        statistic=statistic,
+        bins=n_bins,
+        expand_binnumbers=True,
+        range=range,
+    )
+
+    # which bin does each point belong to
+    bin_number_df = pd.DataFrame(binned_data.binnumber, index=["x_bin", "y_bin"]).T
+
+    # filter out any beyond-edge bins that capture values outside bin bounds (e.g. due to range parameter)
+    # we don't want to modify `binned_data.statistic` for these bins, because their indices will be out of bounds in that array
+    # and we don't want to include these bins in the bin sizes quantile calculation, since these bins won't be displayed on the plot.
+    # (note that the bin numbers are 1-indexed, not 0-indexed! https://github.com/scipy/scipy/issues/7010#issuecomment-279264653)
+    # (so anything in bin 0 or bin #bins+1 is out of bounds)
+    bin_number_df = bin_number_df[
+        (bin_number_df["x_bin"] >= 1)
+        & (bin_number_df["x_bin"] <= n_bins)
+        & (bin_number_df["y_bin"] >= 1)
+        & (bin_number_df["y_bin"] <= n_bins)
+    ]
+
+    # bin sizes: number of points per bin
+    bin_sizes = bin_number_df.groupby(["x_bin", "y_bin"]).size()
+
+    # Fill N/A counts for bins with 0 items
+    bin_sizes = bin_sizes.reindex(
+        pd.MultiIndex.from_product(
+            [
+                np.arange(1, binned_data.statistic.shape[0] + 1),
+                np.arange(1, binned_data.statistic.shape[1] + 1),
+            ],
+            names=bin_sizes.index.names,
+        ),
+        fill_value=0,
+    )
+
+    # Prepare to plot
+    # binned_data.statistic does not follow Cartesian convention
+    # we need to transpose to visualize.
+    # see notes in numpy.histogram2d docs.
+    plot_values = binned_data.statistic.T
+
+    # Choose bins to remove: drop bins with low number of counts
+    # i.e. low overall density
+    if quantile is not None:
+        bins_to_remove = bin_sizes[
+            bin_sizes <= bin_sizes.quantile(quantile)
+        ].reset_index(name="size")
+
+        # Remove low-count bins by setting the color value to nan.
+        # To multiple-index into a 2d array, list x dimensions first, then y dimensions second.
+        # Note: the bin numbers are 1-indexed, not 0-indexed! (https://github.com/scipy/scipy/issues/7010#issuecomment-279264653)
+        # Also note the swap of y and x in the bin numbers, because of the transpose above.
+        # (See numpy.histogram2d docs for more info.)
+        plot_values[
+            bins_to_remove["y_bin"].values - 1, bins_to_remove["x_bin"].values - 1
+        ] = np.nan
+
+        remaining_bins = bin_sizes[bin_sizes > bin_sizes.quantile(quantile)]
+    else:
+        remaining_bins = bin_sizes
+
+    # Plot, as in numpy histogram2d docs
+    fig, ax = plt.subplots(figsize=figsize)
+    pltX, pltY = np.meshgrid(binned_data.x_edge, binned_data.y_edge)
+    colormesh = plt.pcolormesh(
+        pltX,
+        pltY,
+        plot_values,
+        cmap=continuous_cmap,
+        norm=matplotlib.colors.CenteredNorm(vcenter=cmap_vcenter)
+        if cmap_vcenter is not None
+        else None,
+    )
+
+    if colorbar_label is not None:
+        # Add color bar.
+        # see also https://stackoverflow.com/a/44642014/130164
+        # Pull colorbar out of axis by creating a special axis for the colorbar - rather than distorting main ax.
+        # specify width and height relative to parent bbox
+        colorbar_ax = inset_axes(
+            ax,
+            width="5%",
+            height="80%",
+            loc="center left",
+            bbox_to_anchor=(1.05, 0.0, 1, 1),
+            bbox_transform=ax.transAxes,
+            borderpad=0,
+        )
+
+        fig.colorbar(colormesh, cax=colorbar_ax, label=colorbar_label)
+
+        # set global "current axes" back to main axes,
+        # so that any calls like plt.title target main ax rather than inset colorbar_ax
+        plt.sca(ax)
+
+    plt.xlabel(x_key)
+    plt.ylabel(y_key)
+
+    description = remaining_bins.describe()
+    description = (
+        f"Counts range from {description['min']:n} to {description['max']:n} per bin"
+    )
+
+    return fig, ax, description
+
+
+def plot_triangular_heatmap(
+    df: pd.DataFrame,
+    cmap="Blues",
+    colorbar_label="Value",
+    figsize=(8, 6),
+    vmin=None,
+    vmax=None,
+    annot=True,
+    fmt=".2g",
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """Plot lower triangular heatmap.
+
+    Often followed with:
+
+    .. code-block:: python
+
+        genetools.plots.wrap_tick_labels(
+            ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10
+        )
+    """
+
+    with sns.axes_style("white"):
+        # Based on https://seaborn.pydata.org/examples/many_pairwise_correlations.html
+
+        fig, ax = plt.subplots(figsize=figsize)
+
+        # Upper triangle mask: the part that will be hidden
+        triangle_mask = np.triu(np.ones_like(df, dtype=bool))
+
+        sns.heatmap(
+            df,
+            cmap=cmap,
+            # Draw the heatmap with the mask and correct aspect ratio
+            mask=triangle_mask,
+            vmin=vmin,
+            vmax=vmax,
+            square=True,
+            cbar_kws={"shrink": 0.5, "label": colorbar_label},
+            linewidths=0,
+            ax=ax,
+            # force all tick labels to be drawn
+            xticklabels=True,
+            yticklabels=True,
+            annot=annot,
+            fmt=fmt,
+        )
+
+        ax.set_xticklabels(
+            ax.get_xticklabels(),
+            rotation=0,
+        )
+        ax.set_yticklabels(
+            ax.get_yticklabels(),
+            rotation=0,
+        )
+
+        return fig, ax
+
+
+def get_point_size(sample_size: int, maximum_size: float = 100) -> float:
+    """get scatterplot point size based on sample size (from scanpy), but cut off at maximum_size"""
+    # avoid division by zero - set sample_size to 1 if it's zero
+    return min(120000 / max(1, sample_size), maximum_size)
+
+
+def plot_confusion_matrix(
+    df: pd.DataFrame,
+    figsize: Optional[Tuple[float, float]] = None,
+    outside_borders=True,
+    inside_border_width=0.5,
+    wrap_labels_amount: Optional[int] = 15,
+    wrap_x_axis_labels=True,
+    wrap_y_axis_labels=True,
+    draw_colorbar=False,
+) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    with sns.axes_style("white"):
+        if figsize is None:
+            # Automatic sizing of confusion matrix, based on df's shape
+            margin = 0.25
+            size_per_class = 0.8
+            # width: give a little extra breathing room because horizontal labels will fill the space
+            auto_width = margin * 2 + df.shape[1] * size_per_class * 1.2
+            if not draw_colorbar:
+                # remove some unnecessary width usually allocated to colorbar
+                auto_width -= df.shape[1] / 5
+            # height: don't need extra breathing room because labels go left-to-right not up-to-down
+            auto_height = margin * 2 + df.shape[0] * size_per_class
+            figsize = (auto_width, auto_height)
+        fig, ax = plt.subplots(figsize=figsize)
+        # add text with numeric values (annot=True), but without scientific notation (overriding fmt with "g" or "d")
+        sns.heatmap(
+            df,
+            annot=True,
+            fmt="g",
+            cmap="Blues",
+            ax=ax,
+            linewidth=inside_border_width,
+            cbar=draw_colorbar,
+            # plot all x and y tick labels
+            xticklabels=True,
+            yticklabels=True,
+        )
+        plt.setp(ax.get_yticklabels(), rotation="horizontal", va="center")
+        plt.setp(ax.get_xticklabels(), rotation="horizontal", ha="center")
+
+        if outside_borders:
+            # Activate outside borders
+            for _, spine in ax.spines.items():
+                spine.set_visible(True)
+
+        if wrap_labels_amount is not None:
+            # Wrap long tick labels
+            genetools.plots.wrap_tick_labels(
+                ax,
+                wrap_amount=wrap_labels_amount,
+                wrap_x_axis=wrap_x_axis_labels,
+                wrap_y_axis=wrap_y_axis_labels,
+            )
+
+        return fig, ax
+
+
+####
 
 # def stacked_density_plot(
 #     data,
