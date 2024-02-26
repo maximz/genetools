@@ -143,9 +143,6 @@ jobs:
     needs: [tests, env_to_output]
     if: needs.env_to_output.outputs.publishDocs == 'true'
 
-    # uncomment the following line to disable docs publishing
-    # if: false # disable docs publishing
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
