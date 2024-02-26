@@ -3,7 +3,17 @@
 from typing import Optional, Tuple, Union
 
 import numpy as np
-import anndata
+import pandas as pd
+
+try:
+    # Import optional dependencies
+    import anndata
+    import scanpy as sc
+except ImportError as e:
+    raise ImportError(
+        "This module requires some optional dependencies. Please install them by running `pip install 'genetools[scanpy]'`"
+    ) from e
+
 import sklearn.decomposition
 import sklearn.preprocessing
 from sklearn.utils import gen_batches
@@ -43,9 +53,6 @@ def find_all_markers(
     :return: Dataframe with ranked marker genes for each cluster. Important columns: gene, rank, [cluster_key] (same as argument value)
     :rtype: pandas.DataFrame
     """
-
-    import pandas as pd
-    import scanpy as sc
 
     # Compute marker genes
     sc.tl.rank_genes_groups(

@@ -54,7 +54,7 @@ master_doc = "contents"
 
 # General information about the project.
 project = "genetools"
-copyright = '2022, <a href="https://www.maximzaslavsky.com">Maxim Zaslavsky</a>'
+copyright = '2024, <a href="https://www.maximzaslavsky.com">Maxim Zaslavsky</a>'
 author = "Maxim Zaslavsky"
 
 # The version info for the project you're documenting, acts as replacement
