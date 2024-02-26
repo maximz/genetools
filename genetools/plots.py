@@ -1155,8 +1155,8 @@ def plot_two_key_color_and_size_dotplot(
     """
     Plot dotplot heatmap showing two keys together.
 
-    Example with mean and standard deviation: Circle color represents the mean. Circle size represents stability (inverse of standard deviation).
-    Suggestion for this use case:
+    Example with mean and standard deviation: Circle color represents the mean. Circle size represents stability (inverse of standard deviation). Suggestions for this use case:
+
     - Pass mean key as `color_key` and standard deviation key as `size_key`.
     - Set `inverse_size=True`. Big circles are trustworthy/stable across the average, while little circles aren't
     - Set `color_legend_text="Mean", size_legend_text="Inverse std. dev."`

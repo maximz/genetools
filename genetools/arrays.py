@@ -80,7 +80,8 @@ def groupby_apply_weighted_value_counts(
     The preferred call is:
 
     .. code-block:: python
-        groupby_apply_weighted_value_counts(
+
+        genetools.arrays.groupby_apply_weighted_value_counts(
             df,
             ["columnA", "columnB"],
             observed=True,
@@ -304,7 +305,7 @@ def get_trim_both_sides_mask(
 
     .. code-block:: python
 
-        trimming_mask = get_trim_both_sides_mask(data, proportiontocut=0.1)
+        trimming_mask = genetools.arrays.get_trim_both_sides_mask(data, proportiontocut=0.1)
         return data[trimming_mask], weights[trimming_mask]
 
     """
