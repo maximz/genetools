@@ -648,6 +648,7 @@ def test_relative_density(data):
         quantile=0.90,
     )
     ax.plot(data["x"], 2 * np.log(data["x"]), "k-")
+    ax.set_title("Two-class relative density")
     return fig
     # TODO: add test we have same results with balanced_class_weights=True or False when class frequencies are identical (e.g. bump B class to 10000).
     # Maybe return statistic directly so we can compare.
@@ -701,6 +702,7 @@ def test_dotplot(dotplot_data):
                 color_vcenter=0,
                 figsize=(8, 6),
             )
+            plt.title("Color and size dotplot")
             return fig
 
 

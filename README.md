@@ -34,6 +34,20 @@
 
 </td>
 </tr>
+
+<tr>
+<td>
+
+[![](tests/baseline/test_dotplot.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%20test_dotplot)
+
+</td>
+<td>
+
+[![](tests/baseline/test_relative_density.png)](https://github.com/maximz/genetools/blob/master/tests/test_plots.py#:~:text=def%test_relative_density)
+
+</td>
+</tr>
+
 </table>
 
 ## Other features
