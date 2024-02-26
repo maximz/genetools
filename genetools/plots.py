@@ -1417,12 +1417,11 @@ def plot_triangular_heatmap(
 
     Often followed with:
 
-    ```
+    .. code-block:: python
+
         genetools.plots.wrap_tick_labels(
             ax, wrap_x_axis=True, wrap_y_axis=True, wrap_amount=10
         )
-    ```
-
     """
 
     with sns.axes_style("white"):

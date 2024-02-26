@@ -411,6 +411,7 @@ def make_confusion_matrix(
     pred_label: str,
     label_order: Optional[List[str]] = None,
 ) -> pd.DataFrame:
+    """Make a confusion matrix. Pairs with ``genetools.plots.plot_confusion_matrix``."""
     # rows ground truth label - columns predicted label
     cm = pd.crosstab(
         np.array(y_true),
@@ -509,33 +510,36 @@ def interpolate_roc(y_true, y_score, n_points=1000):
     Interpolate receiver operating characteristic curve.
 
     Returns:
-    - interpolated FPR
-    - interpolated TPR
-    - original FPR
-    - original TPR
+
+    * interpolated FPR
+    * interpolated TPR
+    * original FPR
+    * original TPR
 
     To plot:
 
-    fig, ax = plt.subplots(figsize=(4, 4))
-    plt.plot(
-        fpr,
-        tpr,
-        label="Real",
-        color="k",
-        alpha=0.5,
-        drawstyle="steps-post",
-    )
-    plt.plot(
-        interpolated_fpr,
-        interpolated_tpr,
-        label="Interpolated",
-        color="r",
-        alpha=0.5,
-        drawstyle="steps-post",
-    )
-    plt.xlabel("FPR")
-    plt.ylabel("TPR")
-    plt.legend(bbox_to_anchor=(1, 1))
+    .. code-block:: python
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        plt.plot(
+            fpr,
+            tpr,
+            label="Real",
+            color="k",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.plot(
+            interpolated_fpr,
+            interpolated_tpr,
+            label="Interpolated",
+            color="r",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.xlabel("FPR")
+        plt.ylabel("TPR")
+        plt.legend(bbox_to_anchor=(1, 1))
     """
     # Use piecewise constant interpolation due to stepwise nature of the ROC curve
     # See also https://stats.stackexchange.com/a/187003/297 and https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc_crossval.html
@@ -572,33 +576,36 @@ def interpolate_prc(y_true, y_score, n_points=1000):
     Interpolate precision-recall curve.
 
     Returns:
-    - interpolated recall
-    - interpolated precision
-    - original recall
-    - original precision
+
+    * interpolated recall
+    * interpolated precision
+    * original recall
+    * original precision
 
     To plot:
 
-    fig, ax = plt.subplots(figsize=(4, 4))
-    plt.plot(
-        recall,
-        precision,
-        label="Real",
-        color="k",
-        alpha=0.5,
-        drawstyle="steps-post",
-    )
-    plt.plot(
-        interpolated_recall,
-        interpolated_precision,
-        label="Interpolated",
-        color="r",
-        alpha=0.5,
-        drawstyle="steps-post",
-    )
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.legend(bbox_to_anchor=(1, 1))
+    .. code-block:: python
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        plt.plot(
+            recall,
+            precision,
+            label="Real",
+            color="k",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.plot(
+            interpolated_recall,
+            interpolated_precision,
+            label="Interpolated",
+            color="r",
+            alpha=0.5,
+            drawstyle="steps-post",
+        )
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        plt.legend(bbox_to_anchor=(1, 1))
     """
     # Use piecewise constant interpolation due to stepwise nature of the PR curve
     precision, recall, _ = sklearn.metrics.precision_recall_curve(y_true, y_score)
