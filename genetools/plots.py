@@ -1478,6 +1478,7 @@ def plot_confusion_matrix(
     wrap_x_axis_labels=True,
     wrap_y_axis_labels=True,
     draw_colorbar=False,
+    cmap="Blues",
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     with sns.axes_style("white"):
         if ax is None:
@@ -1503,7 +1504,7 @@ def plot_confusion_matrix(
             df,
             annot=True,
             fmt="g",
-            cmap="Blues",
+            cmap=cmap,
             ax=ax,
             linewidth=inside_border_width,
             cbar=draw_colorbar,
