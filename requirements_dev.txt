@@ -7,7 +7,7 @@ igraph==0.10.8
 louvain==0.8.1
 # Keeping matplotlib at 3.7.3 because matplotlib 3.8 breaks seaborn < v0.13 heatmaps in plot_confusion_matrix()
 # (https://github.com/mwaskom/seaborn/issues/3478)
-matplotlib==3.7.3
+matplotlib==3.8.3
 numpy==1.26.4
 pandas==2.2.1
 pip>=21.1.1
