@@ -1470,6 +1470,7 @@ def get_point_size(sample_size: int, maximum_size: float = 100) -> float:
 
 def plot_confusion_matrix(
     df: pd.DataFrame,
+    ax: Optional[matplotlib.axes.Axes] = None,
     figsize: Optional[Tuple[float, float]] = None,
     outside_borders=True,
     inside_border_width=0.5,
@@ -1479,19 +1480,24 @@ def plot_confusion_matrix(
     draw_colorbar=False,
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     with sns.axes_style("white"):
-        if figsize is None:
-            # Automatic sizing of confusion matrix, based on df's shape
-            margin = 0.25
-            size_per_class = 0.8
-            # width: give a little extra breathing room because horizontal labels will fill the space
-            auto_width = margin * 2 + df.shape[1] * size_per_class * 1.2
-            if not draw_colorbar:
-                # remove some unnecessary width usually allocated to colorbar
-                auto_width -= df.shape[1] / 5
-            # height: don't need extra breathing room because labels go left-to-right not up-to-down
-            auto_height = margin * 2 + df.shape[0] * size_per_class
-            figsize = (auto_width, auto_height)
-        fig, ax = plt.subplots(figsize=figsize)
+        if ax is None:
+            if figsize is None:
+                # Automatic sizing of confusion matrix, based on df's shape
+                margin = 0.25
+                size_per_class = 0.8
+                # width: give a little extra breathing room because horizontal labels will fill the space
+                auto_width = margin * 2 + df.shape[1] * size_per_class * 1.2
+                if not draw_colorbar:
+                    # remove some unnecessary width usually allocated to colorbar
+                    auto_width -= df.shape[1] / 5
+                # height: don't need extra breathing room because labels go left-to-right not up-to-down
+                auto_height = margin * 2 + df.shape[0] * size_per_class
+                figsize = (auto_width, auto_height)
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            # Passed in an existing ax
+            fig = ax.get_figure()
+
         # add text with numeric values (annot=True), but without scientific notation (overriding fmt with "g" or "d")
         sns.heatmap(
             df,
