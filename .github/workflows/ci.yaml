@@ -134,7 +134,7 @@ jobs:
       - name: Upload coverage on success
         # v4 breaks tokenless uploads
         # v3.1.5 is a specific version for node20. v3.1.6 returned to node16.
-        uses: codecov/codecov-action@v3.1.5
+        uses: codecov/codecov-action@v4.2.0
         if: ${{ success() }}
 
   docs:
