@@ -49,7 +49,7 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/maximz/genetools",
-    version="0.7.4",
+    version="0.7.5",
     zip_safe=False,
     extras_require={
         # This will also install anndata and UMAP packages
