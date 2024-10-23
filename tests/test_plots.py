@@ -725,6 +725,34 @@ def test_dotplot_single_key(dotplot_data):
             return fig
 
 
+@snapshot_image
+def test_dotplot_confirm_legend_colors_match_dot_colors():
+    # Regression test to confirm that the colors in the legend match the colors of the dots, for data where the max value is a small positive float.
+    df = pd.DataFrame(
+        [
+            {"feature": "feature1", "value": 0.12},
+            {"feature": "feature2", "value": 0.02},
+            {"feature": "feature3", "value": 0.03},
+            {"feature": "feature4", "value": 0.0},
+            {"feature": "feature5", "value": 0.08},
+            {"feature": "feature6", "value": 0.03},
+            {"feature": "feature7", "value": 0.06},
+            {"feature": "feature8", "value": 0.0},
+        ]
+    ).assign(classname="class1")
+    with sns.plotting_context("paper"), sns.axes_style("white"):
+        fig, _ = genetools.plots.plot_color_and_size_dotplot(
+            data=df,
+            x_axis_key="classname",
+            y_axis_key="feature",
+            value_key="value",
+            color_cmap=sns.color_palette("magma_r", as_cmap=True),
+            figsize=(5, 6),
+            grid=False,
+        )
+        return fig
+
+
 ####
 
 
