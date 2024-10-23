@@ -725,9 +725,8 @@ def test_dotplot_single_key(dotplot_data):
             return fig
 
 
-@snapshot_image
-def test_dotplot_confirm_legend_colors_match_dot_colors():
-    # Regression test to confirm that the colors in the legend match the colors of the dots, for data where the max value is a small positive float.
+@pytest.fixture
+def dotplot_data2():
     df = pd.DataFrame(
         [
             {"feature": "feature1", "value": 0.12},
@@ -740,15 +739,62 @@ def test_dotplot_confirm_legend_colors_match_dot_colors():
             {"feature": "feature8", "value": 0.0},
         ]
     ).assign(classname="class1")
+    return df
+
+
+@snapshot_image
+def test_dotplot_confirm_legend_colors_match_dot_colors(dotplot_data2):
+    # Regression test to confirm that the colors in the legend match the colors of the dots, for data where the max value is a small positive float.
     with sns.plotting_context("paper"), sns.axes_style("white"):
         fig, _ = genetools.plots.plot_color_and_size_dotplot(
-            data=df,
+            data=dotplot_data2,
             x_axis_key="classname",
             y_axis_key="feature",
             value_key="value",
             color_cmap=sns.color_palette("magma_r", as_cmap=True),
             figsize=(5, 6),
             grid=False,
+        )
+        return fig
+
+
+@snapshot_image
+def test_dotplot_confirm_vmin_vmax_supported(dotplot_data2):
+    # Regression test to confirm that the colors in the legend match the colors of the dots, for data where the max value is a small positive float.
+    with sns.plotting_context("paper"), sns.axes_style("white"):
+        fig, _ = genetools.plots.plot_color_and_size_dotplot(
+            data=dotplot_data2,
+            x_axis_key="classname",
+            y_axis_key="feature",
+            value_key="value",
+            color_cmap=sns.color_palette("magma_r", as_cmap=True),
+            figsize=(5, 6),
+            grid=False,
+            # Testing these parameters:
+            color_and_size_vmin=0,
+            color_and_size_vmax=1,
+        )
+        return fig
+
+
+@snapshot_image
+def test_dotplot_confirm_vmin_vmax_supported_with_extend_legend_to_vmin_vmax(
+    dotplot_data2,
+):
+    # Regression test to confirm that the colors in the legend match the colors of the dots, for data where the max value is a small positive float.
+    with sns.plotting_context("paper"), sns.axes_style("white"):
+        fig, _ = genetools.plots.plot_color_and_size_dotplot(
+            data=dotplot_data2,
+            x_axis_key="classname",
+            y_axis_key="feature",
+            value_key="value",
+            color_cmap=sns.color_palette("magma_r", as_cmap=True),
+            figsize=(5, 6),
+            grid=False,
+            # Testing these parameters:
+            color_and_size_vmin=0,
+            color_and_size_vmax=1,
+            extend_legend_to_vmin_vmax=True,
         )
         return fig
 
