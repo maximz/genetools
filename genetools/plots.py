@@ -879,7 +879,8 @@ def _common_dotplot(
             )
         else:
             plot_vmin, plot_vmax = color_vmin, color_vmax
-            color_norm = None
+            # Create a norm even when vcenter is None
+            color_norm = matplotlib.colors.Normalize(vmin=plot_vmin, vmax=plot_vmax)
 
         scatter = ax.scatter(
             data[x_axis_key].values,
@@ -987,11 +988,11 @@ def _common_dotplot(
                 representative_colors = np.clip(
                     representative_colors, color_vmin, color_vmax
                 )
-            if color_norm is not None:
-                # Apply a color norm
-                representative_colors = [
-                    color_norm(value) for value in representative_colors
-                ]
+
+            # Apply color norm
+            # Always normalize colors using the same norm as the scatter plot
+            representative_colors = color_norm(representative_colors)
+
             # Apply color cmap
             # First, cast string cmaps to a callable function
             color_cmap_func = matplotlib.cm.get_cmap(color_cmap)
