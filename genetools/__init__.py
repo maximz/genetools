@@ -2,7 +2,7 @@
 
 __author__ = """Maxim Zaslavsky"""
 __email__ = "maxim@maximz.com"
-__version__ = "0.7.4"
+__version__ = "0.7.5"
 
 # We want genetools.[submodule].[function] to be accessible simply by importing genetools, without having to import genetools.[submodule]
 from . import helpers, plots, stats, arrays

@@ -794,12 +794,10 @@ def _common_dotplot(
     size_vmax: Optional[float] = None,
     size_vcenter: Optional[float] = None,
     ###
-    # Configure which entries will be displayed in size legend:
-    # n_legend_items_for_size: int = 5,
     extend_size_legend_to_vmin_vmax: bool = False,
-    # Providing representative_sizes_for_legend will override n_legend_items_for_size and extend_size_legend_to_vmin_vmax
+    # Configure which entries will be displayed in size legend (note: this will override extend_size_legend_to_vmin_vmax)
     representative_sizes_for_legend: Optional[List[float]] = None,
-    # If should_size_legend_items_be_colored is False, all size legend items will be uniform black
+    # If should_size_legend_items_be_colored is False, all size legend items will be uniform grey:
     should_size_legend_items_be_colored: bool = False,
     ###
     figsize: Optional[Tuple[float, float]] = None,
@@ -807,6 +805,8 @@ def _common_dotplot(
     min_marker_size: int = 1,
     marker_size_scale_factor: int = 100,
     grid: bool = True,
+    # Control grid transparency:
+    grid_alpha: float = 0.3,
 ) -> Tuple[
     matplotlib.figure.Figure,
     matplotlib.axes.Axes,
@@ -839,38 +839,49 @@ def _common_dotplot(
             if size_vcenter is not None:
                 # Support a vcenter for size, similar to color_vcenter, to allow divergent size palettes so negative values can have big sizes.
                 # Example: size_vcenter=0 would make 0 have small size while 1 and -1 have large size.
+
+                # Just to reiterate how this affects sizes in diverging data: Values on both sides of the center are mapped to large sizes.
+                # (Using size_vcenter will make values equally distant from the center appear the same size. So if we have data like -5, -3, 0, 3, 5, with size_vcenter=0, the size of -3 and 3 will be the same, as will the size of -5 and 5.)
+
                 # Calculate the absolute difference from vcenter
                 abs_diff_from_vcenter = np.abs(clipped_size_data - size_vcenter)
                 clipped_size_data = abs_diff_from_vcenter
 
-            # Note we have to reshape/ravel the data because this scaler expects a 2d array
+            # Note we have to reshape/ravel the data because the MinMaxScaler expects a 2d array
             return clipped_size_data.reshape(-1, 1)
 
-        # Fit the scaler to the clipped data
-        # Due to clip=True, we do not need to repeat manual np.clip before calling size_scaller.transform.
-        # Note we have to reshape/ravel the data because this scaler expects a 2d array
-        size_scaler = MinMaxScaler(clip=True).fit(
-            _generate_size_norm_input_data(data[size_key])
-        )
+        size_data = data[size_key]
+        if size_data.nunique() < 2:
+            # Handle zero variance case (i.e. all values are identical)
+            def size_norm(x):
+                # Return constant size
+                return marker_size_scale_factor
+        else:
+            # Fit the scaler to the clipped data
+            # Due to clip=True, we do not need to repeat manual np.clip before calling size_scaller.transform.
+            # Note we have to reshape/ravel the data in _generate_size_norm_input_data because MinMaxScaler expects a 2d array
+            size_scaler = MinMaxScaler(clip=True).fit(
+                _generate_size_norm_input_data(size_data)
+            )
 
-        def size_norm(x: Union[np.ndarray, pd.Series, List[float]]) -> np.ndarray:
-            """convert raw size data to plot marker size"""
-            # Note we have to reshape/ravel the data because this scaler expects a 2d array
-            transformed = size_scaler.transform(
-                _generate_size_norm_input_data(x)
-            ).ravel()
-            if inverse_size:
-                transformed = 1 - transformed
-
-            return min_marker_size + marker_size_scale_factor * transformed
+            def size_norm(x: Union[np.ndarray, pd.Series, List[float]]) -> np.ndarray:
+                """convert raw size data to plot marker size"""
+                # Note we have to reshape/ravel the data in _generate_size_norm_input_data because MinMaxScaler expects a 2d array
+                transformed = size_scaler.transform(
+                    _generate_size_norm_input_data(x)
+                ).ravel()
+                if inverse_size:
+                    transformed = 1 - transformed
+                return min_marker_size + marker_size_scale_factor * transformed
 
         fig, ax = plt.subplots(figsize=figsize)
 
+        # Set up color normalization
         if color_vcenter is not None:
             # Create norm centered at color_vcenter.
+
             # We have to also handle color_vmin and color_vmax if they are not None.
-            # They can't be passed alongside a norm to ax.scatter: "ValueError: Passing a Normalize instance simultaneously with vmin/vmax is not supported.  Please pass vmin/vmax directly to the norm when creating it."
-            plot_vmin, plot_vmax = None, None
+            # They can't be passed alongside a norm to ax.scatter: "ValueError: Passing a Normalize instance simultaneously with vmin/vmax is not supported. Please pass vmin/vmax directly to the norm when creating it."
 
             # Previously we used: norm = matplotlib.colors.CenteredNorm(vcenter=color_vcenter)
             # But CenteredNorm does not accept vmin, vmax in its constructor, so we have to switch to TwoSlopeNorm
@@ -878,9 +889,8 @@ def _common_dotplot(
                 vcenter=color_vcenter, vmin=color_vmin, vmax=color_vmax
             )
         else:
-            plot_vmin, plot_vmax = color_vmin, color_vmax
             # Create a norm even when vcenter is None
-            color_norm = matplotlib.colors.Normalize(vmin=plot_vmin, vmax=plot_vmax)
+            color_norm = matplotlib.colors.Normalize(vmin=color_vmin, vmax=color_vmax)
 
         scatter = ax.scatter(
             data[x_axis_key].values,
@@ -888,14 +898,14 @@ def _common_dotplot(
             c=data[color_key].values,
             s=size_norm(data[size_key]),
             cmap=color_cmap,
-            norm=color_norm,
-            vmin=plot_vmin,
-            vmax=plot_vmax,
+            norm=color_norm,  # includes the vmin, vmax, vcenter
             alpha=1,
             # Add outlines to the scatter points:
             edgecolors="lightgrey",
             linewidths=0.5,
+            zorder=3,  # Ensure points are drawn above grid
         )
+
         ax.set_xlim(-0.5, max(ax.get_xticks()) + 0.5)
         ax.set_ylim(-0.5, max(ax.get_yticks()) + 0.5)
         ax.invert_yaxis()  # respect initial ordering - go top to bottom
@@ -904,11 +914,17 @@ def _common_dotplot(
         if grid:
             ax.set_xticks(np.array(ax.get_xticks()) - 0.5, minor=True)
             ax.set_yticks(np.array(ax.get_yticks()) - 0.5, minor=True)
-            ax.grid(which="minor")
+            ax.grid(
+                which="minor",
+                alpha=grid_alpha,
+                # Put grid behind points
+                zorder=1,
+            )
 
         # Aspect ratio
         ax.set_aspect("equal", "box")
 
+        # Handle tick labels
         # At this point, ax.get_xticklabels() may return empty tick labels and emit UserWarning: FixedFormatter should only be used together with FixedLocator
         # Must draw the canvas to position the ticks: https://stackoverflow.com/a/41124884/130164
         # And must assign tick locations prior to assigning tick labels, i.e. set_ticks(get_ticks()): https://stackoverflow.com/a/68794383/130164
@@ -917,18 +933,17 @@ def _common_dotplot(
         ax.set_xticklabels(ax.get_xticklabels(), rotation="vertical")
 
         ## Produce size legend entries containing a cross section of values.
-
-        # User may have passed representative_sizes_for_legend.
+        # Generate legend entries
         if representative_sizes_for_legend is not None:
+            # User may have passed representative_sizes_for_legend.
             representative_sizes_for_legend = np.array(representative_sizes_for_legend)
         else:
             # Generate evenly spaced values
 
             # First, find the extents:
-            data_min_size_clipped, data_max_size_clipped = (
-                np.min(data[size_key]),
-                np.max(data[size_key]),
-            )
+            data_min_size_clipped = np.min(size_data)
+            data_max_size_clipped = np.max(size_data)
+
             if size_vmin is not None or size_vmax is not None:
                 data_min_size_clipped = np.clip(
                     data_min_size_clipped, size_vmin, size_vmax
@@ -944,7 +959,7 @@ def _common_dotplot(
                 if size_vmax is not None:
                     data_max_size_clipped = size_vmax
 
-            # Generate values:
+            # Include center point in legend if specified:
             if (
                 size_vcenter is not None
                 and data_min_size_clipped <= size_vcenter <= data_max_size_clipped
@@ -955,11 +970,13 @@ def _common_dotplot(
             else:
                 add_extra = np.array([])
 
+            # Generate values:
             # n_legend_items_for_size = 5
             # representative_sizes_for_legend = np.linspace(data_min_size_clipped, data_max_size_clipped, n_legend_items_for_size)
             # Instead of linspace, use a Locator as in legend_elements(): https://github.com/matplotlib/matplotlib/blob/eb02b108ea181930ab37717c75e07ba792e01f1d/lib/matplotlib/collections.py#L1143-L1152
             # num = n_legend_items_for_size - len(add_extra)
             # locator = matplotlib.ticker.MaxNLocator(nbins=num-1, min_n_ticks=num, steps=[1, 2, 2.5, 3, 5, 6, 8, 10])
+            # Actually, use AutoLocator for nice round numbers:
             locator = matplotlib.ticker.AutoLocator()
             representative_sizes_for_legend: np.ndarray = np.hstack(
                 [
@@ -967,20 +984,23 @@ def _common_dotplot(
                     add_extra,
                 ]
             )
+
+            # Clip:
             representative_sizes_for_legend = np.clip(
                 representative_sizes_for_legend,
                 data_min_size_clipped,
                 data_max_size_clipped,
             )
-            representative_sizes_for_legend = np.unique(
-                representative_sizes_for_legend
-            )  # remove any duplicates
+
+            # Remove any duplicates:
+            representative_sizes_for_legend = np.unique(representative_sizes_for_legend)
+
             representative_sizes_for_legend.sort()
 
-        # Calculate corresponding plot sizes
+        # Calculate corresponding sizes for legend
         representative_sizes_after_norm = size_norm(representative_sizes_for_legend)
 
-        # Calculate corresponding plot colors
+        # Calculate corresponding colors for legend
         if should_size_legend_items_be_colored:
             representative_colors = representative_sizes_for_legend
             if color_vmin is not None or color_vmax is not None:
@@ -1018,9 +1038,11 @@ def _common_dotplot(
                 representative_sizes_after_norm, representative_colors
             )
         ]
-        # Create legend labels with %g formatting to remove any trailing zeros when converting a float to string
+
+        # Format legend labels
+        # Create legend labels with %g formatting to remove any trailing zeros when converting a float to string:
         # labels = [f"{value:g}" for value in representative_sizes_for_legend]
-        # Use this instead to set a maximum precision and avoid scientific notation:
+        # Actually, use this instead to set a maximum precision and avoid scientific notation:
         labels = [
             np.format_float_positional(val, trim="-", unique=True, precision=4)
             for val in representative_sizes_for_legend
@@ -1046,12 +1068,14 @@ def plot_color_and_size_dotplot(
     color_and_size_vcenter: Optional[float] = None,
     figsize: Optional[Tuple[float, float]] = None,
     legend_text: Optional[str] = None,
-    # n_legend_items: int = 5,
     extend_legend_to_vmin_vmax: bool = False,
+    # Configure which entries will be displayed in legend (note: this will override extend_legend_to_vmin_vmax)
     representative_values_for_legend: Optional[List[float]] = None,
     min_marker_size: int = 1,
     marker_size_scale_factor: int = 100,
     grid: bool = True,
+    # Control grid transparency:
+    grid_alpha: float = 0.3,
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """
     Plot dotplot heatmap showing a key as both color and size.
@@ -1071,7 +1095,6 @@ def plot_color_and_size_dotplot(
             size_vmin=color_and_size_vmin,
             size_vmax=color_and_size_vmax,
             size_vcenter=color_and_size_vcenter,
-            # n_legend_items_for_size=n_legend_items,
             extend_size_legend_to_vmin_vmax=extend_legend_to_vmin_vmax,
             representative_sizes_for_legend=representative_values_for_legend,
             # Size legend will represent both size_key and color_key:
@@ -1081,6 +1104,7 @@ def plot_color_and_size_dotplot(
             min_marker_size=min_marker_size,
             marker_size_scale_factor=marker_size_scale_factor,
             grid=grid,
+            grid_alpha=grid_alpha,
         )
 
         def add_padding_to_multiline_string(text: str, padding: int):
@@ -1142,8 +1166,8 @@ def plot_two_key_color_and_size_dotplot(
     size_vmin: Optional[float] = None,
     size_vmax: Optional[float] = None,
     size_vcenter: Optional[float] = None,
-    # n_legend_items_for_size: int = 5,
     extend_size_legend_to_vmin_vmax: bool = False,
+    # Configure which entries will be displayed in size legend  (note: this will override extend_size_legend_to_vmin_vmax)
     representative_sizes_for_legend: Optional[List[float]] = None,
     inverse_size: bool = False,
     color_legend_text: Optional[str] = None,
@@ -1152,6 +1176,8 @@ def plot_two_key_color_and_size_dotplot(
     min_marker_size: int = 1,
     marker_size_scale_factor: int = 100,
     grid: bool = True,
+    # Control grid transparency:
+    grid_alpha: float = 0.3,
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """
     Plot dotplot heatmap showing two keys together.
@@ -1189,6 +1215,7 @@ def plot_two_key_color_and_size_dotplot(
             min_marker_size=min_marker_size,
             marker_size_scale_factor=marker_size_scale_factor,
             grid=grid,
+            grid_alpha=grid_alpha,
         )
 
         # Make colorbar axes:
