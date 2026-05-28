@@ -3,6 +3,7 @@
 """Tests for `genetools` package."""
 
 import genetools
+import pytest
 import requests
 import os
 import subprocess
@@ -20,6 +21,15 @@ def test_importability():
     # Hacky way to get a clean python environment without all the pytest env stuff
     # Because the above won't fail
     subprocess.run(["python", "-c", "import genetools; genetools.plots;"], check=True)
+
+
+def test_scanpy_helpers_optional_import_behavior():
+    if genetools.extras_available:
+        assert genetools.scanpy_helpers is not None
+    else:
+        with pytest.raises(ImportError, match="genetools\\[scanpy\\]") as err:
+            genetools.scanpy_helpers
+        assert err.value.__cause__ is not None
 
 
 def test_version_number_not_yet_on_pypi():
