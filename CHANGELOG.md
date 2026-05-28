@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.6
+
+* Keep core genetools imports working when optional Scanpy helper imports fail.
+
 ## 0.7.0
 
 * Many new stats, plotting, and helper functions. See PRs [#24](https://github.com/maximz/genetools/pull/24) and [#73](https://github.com/maximz/genetools/pull/73).

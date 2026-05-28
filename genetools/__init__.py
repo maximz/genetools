@@ -20,3 +20,12 @@ except Exception as err:
 __all__ = ["helpers", "plots", "stats", "arrays"]
 if extras_available:
     __all__.append("scanpy_helpers")
+
+
+def __getattr__(name):
+    if name == "scanpy_helpers" and not extras_available:
+        raise ImportError(
+            "genetools.scanpy_helpers requires optional Scanpy dependencies. "
+            "Install them with `pip install 'genetools[scanpy]'`."
+        ) from _scanpy_helpers_import_error
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
